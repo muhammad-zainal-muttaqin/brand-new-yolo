@@ -1,4 +1,4 @@
-﻿path: /workspace/autoresearch-bbc-v1/Dataset-YOLO
+path: /workspace/Dataset-Sawit-YOLO
 train: images/train
 val: images/val
 test: images/test
@@ -9,4 +9,3 @@ names:
   1: B2
   2: B3
   3: B4
-
