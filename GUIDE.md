@@ -71,15 +71,20 @@ Saya hanya boleh berhenti jika masalah itu memang **tidak bisa diselesaikan seca
   - test `624`
   - total image `3992`
   - total label `3992`
-- Dependency penting belum lengkap:
+- Dependency penting kini sudah siap:
   - `torch` ada
-  - `ultralytics` belum ada
-  - `pandas` belum ada
+  - `ultralytics` sudah terpasang
+  - `pandas` sudah terpasang
+  - `matplotlib` sudah terpasang
 - GPU tersedia: **NVIDIA A40**
 - `git lfs` belum tersedia
+- Audit Phase 0 awal sudah selesai:
+  - pairing image-label valid
+  - group leakage antar split = `0`
+  - 4 label invalid ditemukan dan sudah diperbaiki otomatis
 
 ### Implikasi
-E0 **bisa mulai dipersiapkan** karena dataset aktual ada, tetapi environment dan script eksekusi masih perlu dilengkapi.
+E0 **sudah masuk eksekusi nyata**: environment inti siap, dataset tervalidasi, dan Phase 0 sedang berjalan.
 
 ---
 
@@ -121,6 +126,11 @@ Semua eksekusi E0 harus mengikuti prinsip berikut:
    - Jika environment berubah, misalnya dependency yang sebelumnya belum terpasang menjadi sudah terpasang, status di `GUIDE.md` harus ikut diperbarui.
    - Jika alur kerja aktual berubah agar lebih sesuai dengan realitas eksekusi, perubahan itu harus dicerminkan di `GUIDE.md` tanpa melanggar policy inti yang sudah disetujui.
    - Setiap akhir phase atau checkpoint penting, agent harus menyinkronkan kondisi nyata eksekusi ke `GUIDE.md`.
+
+9. **Aturan minimum untuk training run yang dianggap sah**
+   - Semua training run yang dipakai untuk pengambilan keputusan eksperimen harus dijalankan minimal **30 epoch**.
+   - Early stopping untuk run non-final boleh dipakai, tetapi nilai **`patience` wajib 10** kecuali ada perubahan eksplisit yang nanti dicatat.
+   - Run pendek di bawah 30 epoch hanya boleh diperlakukan sebagai smoke test / bootstrap, bukan evidence utama untuk memilih setup.
 
 ---
 
@@ -174,40 +184,40 @@ Gunakan checklist ini sebagai tracker utama.
 
 ## 6.1 Readiness Checklist
 
-- [ ] Repo berhasil diaudit
-- [ ] Dataset image tersedia di `Dataset-YOLO/images/...`
-- [ ] Dataset label tersedia di `Dataset-YOLO/labels/...`
-- [ ] `data.yaml` menunjuk path yang benar
-- [ ] Semua split (`train/val/test`) ada
-- [ ] Pairing image-label valid
-- [ ] Dependency Python terpasang
-- [ ] `ultralytics` terpasang
-- [ ] `pandas` terpasang
-- [ ] GPU terdeteksi
-- [ ] Direktori output dibuat
-- [ ] Format logging eksperimen disiapkan
-- [ ] `GITHUB_TOKEN` tersedia di environment
-- [ ] Remote GitHub valid dan bisa di-push
+- [x] Repo berhasil diaudit
+- [x] Dataset image tersedia pada path aktif `data.yaml`
+- [x] Dataset label tersedia pada path aktif `data.yaml`
+- [x] `data.yaml` menunjuk path yang benar
+- [x] Semua split (`train/val/test`) ada
+- [x] Pairing image-label valid
+- [x] Dependency Python terpasang
+- [x] `ultralytics` terpasang
+- [x] `pandas` terpasang
+- [x] GPU terdeteksi
+- [x] Direktori output dibuat
+- [x] Format logging eksperimen disiapkan
+- [x] `GITHUB_TOKEN` tersedia di environment
+- [x] Remote GitHub valid dan bisa di-push
 
 ## 6.2 Phase 0 — Validation & Calibration
 
 ### Task A — EDA dan Validasi Dataset
-- [ ] Hitung jumlah image per split
-- [ ] Hitung jumlah label per split
-- [ ] Hitung distribusi kelas B1-B4
-- [ ] Cek image tanpa label
-- [ ] Cek bbox invalid / out-of-range
-- [ ] Cek ukuran bbox kecil ekstrem
-- [ ] Cek ukuran objek per kelas
-- [ ] Cek konsistensi nama file image-label
-- [ ] Cek tree-group leakage antar split
-- [ ] Simpan report EDA
+- [x] Hitung jumlah image per split
+- [x] Hitung jumlah label per split
+- [x] Hitung distribusi kelas B1-B4
+- [x] Cek image tanpa label
+- [x] Cek bbox invalid / out-of-range
+- [x] Cek ukuran bbox kecil ekstrem
+- [x] Cek ukuran objek per kelas
+- [x] Cek konsistensi nama file image-label
+- [x] Cek tree-group leakage antar split
+- [x] Simpan report EDA
 - [ ] Simpan visual sample / hard cases
 
 ### Task B — Resolution Sweep
-- [ ] Jalankan baseline pada `imgsz=640`, seed 1
+- [x] Jalankan baseline pada `imgsz=640`, seed 1
 - [ ] Jalankan baseline pada `imgsz=640`, seed 2
-- [ ] Jalankan baseline pada `imgsz=1024`, seed 1
+- [x] Jalankan baseline pada `imgsz=1024`, seed 1
 - [ ] Jalankan baseline pada `imgsz=1024`, seed 2
 - [ ] Bandingkan mean metric 640 vs 1024
 - [ ] Tetapkan resolusi kerja
@@ -221,9 +231,9 @@ Gunakan checklist ini sebagai tracker utama.
 - [ ] Tentukan indikasi saturasi / masih butuh data
 
 ### Gate Phase 0
-- [ ] Jika ditemukan label error berat, lakukan perbaikan otomatis yang aman semampunya
-- [ ] Jika split tidak valid, lakukan perbaikan split secara otomatis
-- [ ] Split final valid dan bebas leakage?
+- [x] Jika ditemukan label error berat, lakukan perbaikan otomatis yang aman semampunya
+- [x] Jika split tidak valid, lakukan perbaikan split secara otomatis
+- [x] Split final valid dan bebas leakage?
 - [ ] Resolusi final dipilih
 - [ ] Kecukupan data dinilai
 
@@ -575,13 +585,13 @@ Keterangan:
 
 Checklist ini wajib terpenuhi dulu sebelum saya mulai menjalankan E0 sungguhan.
 
-- [ ] Dataset aktual tersedia di workspace
-- [ ] Path dataset final sudah dipastikan
-- [ ] Package `ultralytics` tersedia
-- [ ] Package `pandas` tersedia
-- [ ] Lokasi simpan hasil eksperimen ditetapkan ke default repo (`outputs/`, `runs/`)
-- [ ] Rejim evaluasi default ditetapkan dari dataset aktual
-- [ ] `GITHUB_TOKEN` tersedia dan valid untuk push
+- [x] Dataset aktual tersedia di workspace
+- [x] Path dataset final sudah dipastikan
+- [x] Package `ultralytics` tersedia
+- [x] Package `pandas` tersedia
+- [x] Lokasi simpan hasil eksperimen ditetapkan ke default repo (`outputs/`, `runs/`)
+- [x] Rejim evaluasi default ditetapkan dari dataset aktual
+- [x] `GITHUB_TOKEN` tersedia dan valid untuk push
 
 ### Rejim evaluasi default
 Secara default, agent harus memakai **split aktual yang benar-benar ada di workspace** sebagai source of truth.
@@ -666,9 +676,9 @@ Contoh hal yang tetap bisa menjadi batas keras:
 
 ## 15. Status Eksekusi Saat Ini
 
-### Belum mulai
-- [ ] Bootstrap environment
-- [ ] Dataset validation
+### Status progres saat ini
+- [x] Bootstrap environment
+- [x] Dataset validation
 - [ ] Phase 0
 - [ ] Phase 1A
 - [ ] Phase 1B
@@ -682,10 +692,10 @@ Contoh hal yang tetap bisa menjadi batas keras:
 
 Urutan aksi paling masuk akal dari kondisi repo saat ini:
 
-1. pasang dependency yang belum ada,
-2. validasi dataset aktual dan `data.yaml`,
-3. sinkronkan status readiness di `GUIDE.md`,
-4. mulai Phase 0.
+1. selesaikan resolution sweep Phase 0 untuk seed 2,
+2. rekap mean metric 640 vs 1024,
+3. jalankan learning curve,
+4. lanjut ke Phase 1.
 
 ---
 

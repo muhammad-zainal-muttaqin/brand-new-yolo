@@ -1,0 +1,22 @@
+{
+  "exact_filename_overlap_counts": {
+    "train__val": 0,
+    "train__test": 0,
+    "val__test": 0
+  },
+  "group_overlap_counts": {
+    "train__val": 0,
+    "train__test": 0,
+    "val__test": 0
+  },
+  "exact_filename_overlap_examples": {
+    "train__val": [],
+    "train__test": [],
+    "val__test": []
+  },
+  "group_overlap_examples": {
+    "train__val": [],
+    "train__test": [],
+    "val__test": []
+  }
+}

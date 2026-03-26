@@ -1,0 +1,20 @@
+{
+  "timestamp_utc": "2026-03-26T17:34:22.401413+00:00",
+  "phase": "phase0",
+  "run_name": "p0_yolo11n_640_s1_e3",
+  "model": "yolo11n.pt",
+  "imgsz": 640,
+  "epochs": 3,
+  "batch": 16,
+  "seed": 1,
+  "split": "val",
+  "data": "Dataset-YOLO/data.yaml",
+  "save_dir": "/workspace/brand-new-yolo/runs/detect/runs/e0/p0_yolo11n_640_s1_e3",
+  "best_weight": "/workspace/brand-new-yolo/runs/detect/runs/e0/p0_yolo11n_640_s1_e3/weights/best.pt",
+  "last_weight": "/workspace/brand-new-yolo/runs/detect/runs/e0/p0_yolo11n_640_s1_e3/weights/last.pt",
+  "precision": 0.4379270808099631,
+  "recall": 0.5518568636774693,
+  "map50": 0.44500142114086966,
+  "map50_95": 0.1981851331483359,
+  "status": "completed"
+}

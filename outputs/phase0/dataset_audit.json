@@ -1,0 +1,33 @@
+{
+  "data_yaml": "Dataset-YOLO/data.yaml",
+  "dataset_root": "/workspace/Dataset-Sawit-YOLO",
+  "status": "ok",
+  "split_image_counts": {
+    "train": 2764,
+    "val": 604,
+    "test": 624
+  },
+  "split_label_counts": {
+    "train": 2764,
+    "val": 604,
+    "test": 624
+  },
+  "split_instance_counts": {
+    "train": 12360,
+    "val": 2786,
+    "test": 2841
+  },
+  "group_counts": {
+    "train": 663,
+    "val": 144,
+    "test": 146
+  },
+  "total_images": 3992,
+  "total_labels": 3992,
+  "total_instances": 17987,
+  "empty_label_images": 83,
+  "missing_label_images": 0,
+  "orphan_labels": 0,
+  "invalid_label_issues": 0,
+  "blockers": []
+}
