@@ -138,7 +138,7 @@ def checkpoint(message: str) -> None:
     sh(['git', 'add', 'outputs/reports/git_sync_log.md'])
     sh(['git', 'commit', '--amend', '--no-edit'])
     token = os.getenv('GITHUB_TOKEN', '')
-    auth = subprocess.check_output(f"printf 'x-access-token:%s' {subprocess.list2cmdline([token])} | base64 -w0", shell=True, text=True).strip()
+    auth = base64.b64encode(f'x-access-token:{token}'.encode()).decode()
     for attempt in range(1, 4):
         r = subprocess.run(['git', f'-c', f'http.https://github.com/.extraheader=AUTHORIZATION: basic {auth}', 'push', 'origin', 'main'], cwd=ROOT, text=True)
         if r.returncode == 0:
