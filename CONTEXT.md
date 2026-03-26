@@ -42,9 +42,19 @@ Gunakan sumber dengan urutan ini jika ada konflik:
 - **Nama tekstual B1-B4 memang pernah tidak konsisten antar dokumen historis.**
 - Namun untuk repo/workspace ini, source of truth operasional yang dipakai adalah:
   - `B1 = buah paling matang / ripe`
+  - `B2 = kelas transisi setelah B1, masih hitam namun mulai ke merah`
+  - `B3 = lebih mentah dari B2, full hitam, masih berduri, masih lonjong`
   - `B4 = buah paling mengkal / belum matang`
 - Jadi urutan biologis `B1 → B4` bergerak dari **paling matang** ke **paling belum matang**.
 - Jika ada dokumen historis yang bertentangan, ikuti mapping ini untuk eksekusi aktif repo ini.
+
+### Panduan visual/posisional label aktif
+
+Untuk interpretasi eksperimen aktif repo ini, pakai panduan berikut:
+- `B1`: buah **merah**, **besar**, **bulat**, dan posisinya **paling bawah** pada tandan; ini indikator kematangan tertinggi.
+- `B2`: buah masih **hitam** namun mulai **transisi ke merah**; buah sudah **besar** dan **bulat**; posisinya **di atas B1**.
+- `B3`: buah **full hitam**, masih ada **duri** pada buah, bentuknya masih **lonjong**, dan posisinya **di atas B2**.
+- `B4`: buah **paling kecil**, **paling dalam di batang/tandan**, sering **susah terlihat**, masih banyak **duri**, warnanya **hitam bahkan hijau**, dan buah pada tandannya masih bisa berkembang lebih besar; ini kelas **paling belum matang**.
 
 ---
 

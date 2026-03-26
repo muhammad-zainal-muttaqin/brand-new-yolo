@@ -8,7 +8,13 @@ Dokumen ini adalah **runbook operasional** untuk menjalankan E0 di repo `brand-n
 - **Sumber asli flowchart**: `https://github.com/muhammad-zainal-muttaqin/YOLOBench/blob/main/E0_Protocol_Flowchart.html`
 - **Peran dokumen ini**: menjabarkan bagaimana protocol canonical dijalankan **secara nyata** di workspace ini, termasuk policy Git, policy artefak, lock file, dan override operasional yang sudah diputuskan selama eksekusi.
 
-> Catatan label: flowchart memakai `M1–M4`, sedangkan dataset aktif di workspace ini memakai `B1–B4`. **Source of truth operasional di repo ini adalah:** `B1 = buah paling matang / ripe`, `B4 = buah paling mengkal / belum matang`. Jadi urutan biologis `B1 → B4` bergerak dari **paling matang** ke **paling belum matang**, dan interpretasi ini **tidak boleh tertukar**.
+> Catatan label: flowchart memakai `M1–M4`, sedangkan dataset aktif di workspace ini memakai `B1–B4`. **Source of truth operasional di repo ini adalah:** `B1 = buah paling matang / ripe`, lalu berurutan turun tingkat kematangannya sampai `B4 = buah paling mengkal / belum matang`. Jadi urutan biologis `B1 → B4` bergerak dari **paling matang** ke **paling belum matang**, dan interpretasi ini **tidak boleh tertukar**.
+>
+> Panduan domain visual/posisional yang wajib dipakai konsisten:
+> - `B1`: buah **merah**, **besar**, **bulat**, posisi **paling bawah** pada tandan → kelas paling matang.
+> - `B2`: buah masih **hitam** tetapi mulai **transisi ke merah**, sudah **besar** dan **bulat**, posisinya **di atas B1**.
+> - `B3`: buah **full hitam**, masih ada **duri**, bentuk masih **lonjong**, posisinya **di atas B2**.
+> - `B4`: buah **paling kecil**, **paling dalam di batang/tandan**, sulit terlihat, masih banyak **duri**, warna **hitam sampai hijau**, dan buahnya masih bisa berkembang lebih besar → kelas paling belum matang.
 
 ---
 

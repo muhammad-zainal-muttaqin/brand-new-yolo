@@ -8,3 +8,4 @@
 - 2026-03-26T23:03:44Z | commit e40ad8f | phase1b: add p1b_yolo11n_640_s1_e30p10m30
 - 2026-03-26T23:09:18Z | commit dabd71d | sync E0 flowchart semantics and rewrite master orchestrator
 - 2026-03-26T23:10:09Z | commit 7cee70a | fix master wait-loop self-detection
+- 2026-03-26T23:16:21Z | commit 2238076 | document detailed B1-B4 semantics

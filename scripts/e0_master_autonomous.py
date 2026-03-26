@@ -709,8 +709,12 @@ def phase1b() -> dict[str, Any]:
     lock.update({
         'protocol_source': CANONICAL_SOURCE,
         'dataset_label_semantics': {
-            'B1': 'paling matang / ripe',
-            'B4': 'paling mengkal / belum matang',
+            'maturity_order': ['B1', 'B2', 'B3', 'B4'],
+            'direction': 'most_mature_to_least_mature',
+            'B1': 'buah merah, besar, bulat, posisi paling bawah tandan; paling matang / ripe',
+            'B2': 'buah masih hitam namun mulai transisi ke merah, sudah besar dan bulat, posisi di atas B1',
+            'B3': 'buah full hitam, masih berduri, masih lonjong, posisi di atas B2',
+            'B4': 'buah paling kecil, paling dalam di batang/tandan, sulit terlihat, masih banyak duri, hitam sampai hijau, masih bisa berkembang lebih besar; paling mengkal / belum matang',
         },
         'phase0_locked': {'imgsz': 640, 'split': 'tree-grouped class-stratified'},
         'phase1a_locked': {'pipeline': 'one-stage'},
@@ -1173,8 +1177,10 @@ def phase3() -> None:
         f'- Decision bucket: **{decision}**',
         '',
         'Per semantic mapping repo ini:',
-        '- `B1 = buah paling matang / ripe`',
-        '- `B4 = buah paling mengkal / belum matang`',
+        '- `B1 = buah merah, besar, bulat, posisi paling bawah tandan; paling matang / ripe`',
+        '- `B2 = buah masih hitam namun mulai transisi ke merah, sudah besar dan bulat, posisi di atas B1`',
+        '- `B3 = buah full hitam, masih berduri, masih lonjong, posisi di atas B2`',
+        '- `B4 = buah paling kecil, paling dalam di batang/tandan, sulit terlihat, masih banyak duri, hitam sampai hijau, dan masih bisa berkembang lebih besar; paling belum matang`',
     ]
     (ROOT / 'outputs/phase3/final_report.md').write_text('\n'.join(report_lines) + '\n', encoding='utf-8')
 
@@ -1182,7 +1188,7 @@ def phase3() -> None:
         '- Canonical source synced: `E0.md` mengikuti flowchart YOLOBench.',
         f'- Phase 3 selesai menggunakan model final `{final_model}`.',
         f'- Final report tersedia di `outputs/phase3/final_report.md` dengan bucket `{decision}`.',
-        '- Mapping label repo tetap dikunci: `B1 = paling matang`, `B4 = paling belum matang`.',
+        '- Mapping label repo tetap dikunci: `B1 -> B2 -> B3 -> B4` dari paling matang ke paling belum matang, lengkap dengan ciri visual/posisionalnya.',
     ])
     checkpoint('phase3 canonical sync complete')
 
