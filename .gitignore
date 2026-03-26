@@ -1,0 +1,23 @@
+# Large dataset artifacts
+Dataset-YOLO/images/
+Dataset-YOLO/labels/
+Dataset-YOLO/*.pt
+
+# Python/cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.ipynb_checkpoints/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Env/logs
+.venv/
+venv/
+env/
+*.log
