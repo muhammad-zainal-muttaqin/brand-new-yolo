@@ -135,7 +135,14 @@ def pid_exists(pid: int) -> bool:
 def active_external_training_processes() -> list[str]:
     out = sh_capture("pgrep -af 'scripts/run_yolo_experiment.py' || true")
     lines = [line for line in out.splitlines() if line.strip()]
-    return [line for line in lines if str(os.getpid()) not in line]
+    filtered = []
+    for line in lines:
+        if str(os.getpid()) in line:
+            continue
+        if "pgrep -af 'scripts/run_yolo_experiment.py'" in line:
+            continue
+        filtered.append(line)
+    return filtered
 
 
 def wait_for_external_activity() -> None:
