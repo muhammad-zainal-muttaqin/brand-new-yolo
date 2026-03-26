@@ -59,6 +59,7 @@ def write_latest_status(row: dict, save_dir: Path, status_path: Path) -> None:
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser()
     p.add_argument('--phase', required=True)
+    p.add_argument('--task', choices=['detect', 'classify'], default='detect')
     p.add_argument('--model', required=True)
     p.add_argument('--data', required=True)
     p.add_argument('--imgsz', type=int, required=True)
@@ -71,6 +72,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument('--device', default='0')
     p.add_argument('--workers', type=int, default=8)
     p.add_argument('--patience', type=int, default=20)
+    p.add_argument('--min-epochs', type=int, default=0)
+    p.add_argument('--fraction', type=float, default=1.0)
+    p.add_argument('--single-cls', action='store_true')
     p.add_argument('--pretrained', action='store_true')
     p.add_argument('--plots', action='store_true')
     return p.parse_args()
@@ -79,6 +83,16 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     model = YOLO(args.model)
+
+    if args.min_epochs:
+        def keep_training_until_min_epochs(trainer):
+            current_epoch = trainer.epoch + 1
+            if current_epoch < args.min_epochs:
+                trainer.stop = False
+                if getattr(trainer, 'stopper', None) is not None:
+                    trainer.stopper.possible_stop = False
+        model.add_callback('on_fit_epoch_end', keep_training_until_min_epochs)
+
     train_results = model.train(
         data=args.data,
         imgsz=args.imgsz,
@@ -92,6 +106,8 @@ def main() -> None:
         exist_ok=True,
         pretrained=args.pretrained,
         patience=args.patience,
+        fraction=args.fraction,
+        single_cls=args.single_cls,
         plots=args.plots,
     )
     save_dir = Path(train_results.save_dir)
@@ -99,7 +115,27 @@ def main() -> None:
     last_weight = save_dir / 'weights' / 'last.pt'
 
     best_model = YOLO(str(best_weight if best_weight.exists() else args.model))
-    metrics = best_model.val(data=args.data, split=args.split, imgsz=args.imgsz, batch=args.batch, device=args.device, workers=args.workers, plots=args.plots)
+    metrics = best_model.val(
+        data=args.data,
+        split=args.split,
+        imgsz=args.imgsz,
+        batch=args.batch,
+        device=args.device,
+        workers=args.workers,
+        single_cls=args.single_cls if args.task == 'detect' else False,
+        plots=args.plots,
+    )
+
+    if args.task == 'classify':
+        precision = float(getattr(metrics, 'top1', 0.0))
+        recall = float(getattr(metrics, 'top5', 0.0))
+        map50 = precision
+        map50_95 = recall
+    else:
+        precision = float(getattr(metrics.box, 'mp', 0.0))
+        recall = float(getattr(metrics.box, 'mr', 0.0))
+        map50 = float(getattr(metrics.box, 'map50', 0.0))
+        map50_95 = float(getattr(metrics.box, 'map', 0.0))
 
     row = {
         'timestamp_utc': datetime.now(timezone.utc).isoformat(),
@@ -115,11 +151,16 @@ def main() -> None:
         'save_dir': str(save_dir),
         'best_weight': str(best_weight) if best_weight.exists() else '',
         'last_weight': str(last_weight) if last_weight.exists() else '',
-        'precision': float(getattr(metrics.box, 'mp', 0.0)),
-        'recall': float(getattr(metrics.box, 'mr', 0.0)),
-        'map50': float(getattr(metrics.box, 'map50', 0.0)),
-        'map50_95': float(getattr(metrics.box, 'map', 0.0)),
+        'precision': precision,
+        'recall': recall,
+        'map50': map50,
+        'map50_95': map50_95,
         'status': 'completed',
+        'fraction': args.fraction,
+        'single_cls': args.single_cls,
+        'min_epochs': args.min_epochs,
+        'patience': args.patience,
+        'task': args.task,
     }
 
     summary_path = Path(f'outputs/{args.phase}/{args.name}_summary.json')

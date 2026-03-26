@@ -1,0 +1,5 @@
+component,run_name,model,imgsz,seed,metric_primary_name,metric_primary,metric_secondary_name,metric_secondary,notes
+stage1_detector_singlecls,p1a_stage1_singlecls_yolo11n_640_s1_e30p10m30,yolo11n.pt,640,1,mAP50-95,0.38476761534783543,mAP50,0.8251601173434541,single-class detector for all FFB
+stage1_detector_singlecls,p1a_stage1_singlecls_yolo11n_640_s2_e30p10m30,yolo11n.pt,640,2,mAP50-95,0.3852219507711072,mAP50,0.8212540380906737,single-class detector for all FFB
+stage2_classifier_gtcrop,p1a_stage2_cls_yolo11ncls_gtcrop_s1_e30p10m30,yolo11n-cls.pt,224,1,top1_acc,0.6378320455551147,top5_acc,1.0,classifier on ground-truth crops
+stage2_classifier_gtcrop,p1a_stage2_cls_yolo11ncls_gtcrop_s2_e30p10m30,yolo11n-cls.pt,224,2,top1_acc,0.6381909251213074,top5_acc,1.0,classifier on ground-truth crops

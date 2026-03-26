@@ -1,19 +1,19 @@
 # Latest Execution Status
 
-- Timestamp UTC: `2026-03-26T18:09:46.506315+00:00`
-- Phase: `phase0`
-- Run name: `p0_yolo11n_1024_s1_e30`
-- Model: `yolo11n.pt`
-- Image size: `1024`
+- Timestamp UTC: `2026-03-26T20:39:15.784051+00:00`
+- Phase: `phase1`
+- Run name: `p1a_stage2_cls_yolo11ncls_gtcrop_s2_e30p10m30`
+- Model: `yolo11n-cls.pt`
+- Image size: `224`
 - Epochs: `30`
-- Batch: `8`
-- Seed: `1`
+- Batch: `128`
+- Seed: `2`
 - Eval split: `val`
 - Status: **completed**
-- Save dir: `/workspace/brand-new-yolo/runs/detect/runs/e0/p0_yolo11n_1024_s1_e30`
-- Best weight: `/workspace/brand-new-yolo/runs/detect/runs/e0/p0_yolo11n_1024_s1_e30/weights/best.pt`
-- Last weight: `/workspace/brand-new-yolo/runs/detect/runs/e0/p0_yolo11n_1024_s1_e30/weights/last.pt`
-- Precision: `0.4887562175254552`
-- Recall: `0.6015943776590654`
-- mAP50: `0.5362744550793069`
-- mAP50-95: `0.2571237184722411`
+- Save dir: `/workspace/brand-new-yolo/runs/classify/runs/e0/p1a_stage2_cls_yolo11ncls_gtcrop_s2_e30p10m30`
+- Best weight: `/workspace/brand-new-yolo/runs/classify/runs/e0/p1a_stage2_cls_yolo11ncls_gtcrop_s2_e30p10m30/weights/best.pt`
+- Last weight: `/workspace/brand-new-yolo/runs/classify/runs/e0/p1a_stage2_cls_yolo11ncls_gtcrop_s2_e30p10m30/weights/last.pt`
+- Precision: `0.6381909251213074`
+- Recall: `1.0`
+- mAP50: `0.6381909251213074`
+- mAP50-95: `1.0`

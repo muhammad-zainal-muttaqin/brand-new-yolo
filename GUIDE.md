@@ -216,36 +216,36 @@ Gunakan checklist ini sebagai tracker utama.
 
 ### Task B — Resolution Sweep
 - [x] Jalankan baseline pada `imgsz=640`, seed 1
-- [ ] Jalankan baseline pada `imgsz=640`, seed 2
+- [x] Jalankan baseline pada `imgsz=640`, seed 2
 - [x] Jalankan baseline pada `imgsz=1024`, seed 1
-- [ ] Jalankan baseline pada `imgsz=1024`, seed 2
-- [ ] Bandingkan mean metric 640 vs 1024
-- [ ] Tetapkan resolusi kerja
+- [x] Jalankan baseline pada `imgsz=1024`, seed 2
+- [x] Bandingkan mean metric 640 vs 1024
+- [x] Tetapkan resolusi kerja
 
 ### Task C — Learning Curve
-- [ ] Train subset 25%
-- [ ] Train subset 50%
-- [ ] Train subset 75%
-- [ ] Train subset 100%
+- [x] Train subset 25%
+- [x] Train subset 50%
+- [x] Train subset 75%
+- [x] Train subset 100%
 - [ ] Plot learning curve
-- [ ] Tentukan indikasi saturasi / masih butuh data
+- [x] Tentukan indikasi saturasi / masih butuh data
 
 ### Gate Phase 0
 - [x] Jika ditemukan label error berat, lakukan perbaikan otomatis yang aman semampunya
 - [x] Jika split tidak valid, lakukan perbaikan split secara otomatis
 - [x] Split final valid dan bebas leakage?
-- [ ] Resolusi final dipilih
-- [ ] Kecukupan data dinilai
+- [x] Resolusi final dipilih
+- [x] Kecukupan data dinilai
 
 ## 6.3 Phase 1A — Pipeline Decision
 
-- [ ] Jalankan one-stage baseline 4 kelas
-- [ ] Siapkan two-stage design (jika data mendukung)
-- [ ] Jalankan stage-1 detector 1 kelas
-- [ ] Jalankan stage-2 maturity classifier
-- [ ] Bandingkan one-stage vs two-stage
-- [ ] Analisis confusion B2/B3
-- [ ] Tetapkan pipeline final
+- [x] Jalankan one-stage baseline 4 kelas
+- [x] Siapkan two-stage design (jika data mendukung)
+- [x] Jalankan stage-1 detector 1 kelas
+- [x] Jalankan stage-2 maturity classifier
+- [x] Bandingkan one-stage vs two-stage
+- [x] Analisis confusion B2/B3
+- [x] Tetapkan pipeline final
 
 ## 6.4 Phase 1B — Architecture Sweep
 
@@ -679,8 +679,8 @@ Contoh hal yang tetap bisa menjadi batas keras:
 ### Status progres saat ini
 - [x] Bootstrap environment
 - [x] Dataset validation
-- [ ] Phase 0
-- [ ] Phase 1A
+- [x] Phase 0
+- [x] Phase 1A
 - [ ] Phase 1B
 - [ ] Phase 2
 - [ ] Phase 3
@@ -692,10 +692,10 @@ Contoh hal yang tetap bisa menjadi batas keras:
 
 Urutan aksi paling masuk akal dari kondisi repo saat ini:
 
-1. selesaikan resolution sweep Phase 0 untuk seed 2,
-2. rekap mean metric 640 vs 1024,
-3. jalankan learning curve,
-4. lanjut ke Phase 1.
+1. jalankan Phase 1A untuk membandingkan one-stage vs two-stage,
+2. lanjut ke Phase 1B architecture sweep pada resolusi kerja `640`,
+3. lock setup final di `outputs/phase1/locked_setup.yaml`,
+4. lanjut ke Phase 2.
 
 ---
 
