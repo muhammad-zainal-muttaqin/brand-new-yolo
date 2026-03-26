@@ -433,7 +433,8 @@ Agent **wajib mencoba memperbaiki sendiri lebih dulu**. Stop dan lapor hanya jik
 - Jika push gagal karena auth/network/permission, agent harus:
   1. tetap menyimpan hasil run secara lokal,
   2. mencatat bahwa sinkronisasi GitHub gagal,
-  3. berhenti untuk melapor, atau menunggu retry policy jika nanti ditetapkan.
+  3. mencoba retry otomatis dengan backoff yang wajar,
+  4. jika masih gagal, lanjutkan eksekusi dengan status **pending sync** dan coba sinkronisasi lagi pada checkpoint berikutnya.
 
 ### A. Data tidak siap dan tidak berhasil diperbaiki
 - folder image kosong,
@@ -578,17 +579,19 @@ Checklist ini wajib terpenuhi dulu sebelum saya mulai menjalankan E0 sungguhan.
 - [ ] Path dataset final sudah dipastikan
 - [ ] Package `ultralytics` tersedia
 - [ ] Package `pandas` tersedia
-- [ ] Lokasi simpan hasil eksperimen disetujui
-- [ ] Rejim evaluasi yang akan dipakai dipastikan
+- [ ] Lokasi simpan hasil eksperimen ditetapkan ke default repo (`outputs/`, `runs/`)
+- [ ] Rejim evaluasi default ditetapkan dari dataset aktual
 - [ ] `GITHUB_TOKEN` tersedia dan valid untuk push
 
-### Rejim evaluasi harus dipilih jelas
-Sebelum eksekusi, kita harus menegaskan salah satu:
-- split repo saat ini,
-- split kanonik lokal,
-- atau split benchmark lain.
+### Rejim evaluasi default
+Secara default, agent harus memakai **split aktual yang benar-benar ada di workspace** sebagai source of truth.
 
-Karena ada konflik angka split antar dokumen, agent **tidak boleh mengarang sendiri** split final tanpa evidence dari data aktual.
+Prioritasnya:
+1. isi dataset aktual yang terdeteksi,
+2. `data.yaml` yang aktif,
+3. metadata/dokumen pendamping.
+
+Jika ada konflik angka split antar dokumen, agent harus mengikuti **evidence dari dataset aktual**, lalu mendokumentasikan keputusan itu di artefak phase 0 dan `GUIDE.md`.
 
 ---
 
@@ -624,9 +627,9 @@ Tujuan:
 
 ---
 
-## 13. Policy: Apa yang Saya Lakukan Setelah Anda Bilang “Lanjut”
+## 13. Policy: Urutan Kerja Agent dalam Mode Otonom
 
-Jika Anda memberi instruksi untuk menjalankan E0, urutan kerja saya adalah:
+Dalam mode eksekusi otonom, urutan kerja saya adalah:
 
 1. audit repo dan dataset,
 2. setup environment,
@@ -639,7 +642,8 @@ Jika Anda memberi instruksi untuk menjalankan E0, urutan kerja saya adalah:
 9. simpan hasil run, update ledger, commit, dan push ke GitHub,
 10. lanjut otomatis ke Phase 2 dan Phase 3 **hanya dengan setup yang sudah dikunci**,
 11. pada akhir setiap run, ulangi langkah simpan hasil + commit + push,
-12. berhenti dan lapor jika masuk kondisi stop.
+12. jika ada masalah, perbaiki sendiri terlebih dahulu,
+13. berhenti hanya jika benar-benar mentok secara teknis atau validitas ilmiah tidak bisa dijaga.
 
 ---
 
@@ -678,22 +682,28 @@ Contoh hal yang tetap bisa menjadi batas keras:
 
 Urutan aksi paling masuk akal dari kondisi repo saat ini:
 
-1. pastikan dataset aktual tersedia,
-2. pasang dependency,
-3. validasi `data.yaml`,
+1. pasang dependency yang belum ada,
+2. validasi dataset aktual dan `data.yaml`,
+3. sinkronkan status readiness di `GUIDE.md`,
 4. mulai Phase 0.
 
 ---
 
 ## 17. Catatan Penting untuk Repo Ini
 
-Dari audit awal, ada conflict metadata yang harus dibereskan sebelum eksperimen sah:
+Dari audit awal, ada conflict metadata yang harus ditangani secara evidence-based:
 - `CONTEXT.md` menyebut split tertentu,
 - `Dataset-YOLO/README.md` menyebut split lain,
-- `Dataset-YOLO/data.yaml` menunjuk path yang tampaknya tidak ada di repo ini saat ini.
+- dataset aktual di workspace menunjukkan split yang benar-benar tersedia.
+
+Status saat ini:
+- `Dataset-YOLO/data.yaml` sudah diarahkan ke dataset aktual,
+- dataset aktual tersedia di `/workspace/Dataset-Sawit-YOLO`,
+- split aktual yang terdeteksi saat ini adalah:
+  - train `2764`
+  - val `604`
+  - test `624`
 
 Maka:
 
-> **Langkah pertama sebelum E0 adalah menegaskan source-of-truth dataset aktual.**
-
-Tanpa itu, semua benchmark berisiko tidak valid.
+> **Source of truth operasional untuk eksekusi E0 adalah dataset aktual yang tersedia di workspace, kecuali nanti Phase 0 menemukan alasan sah untuk memperbaikinya.**
