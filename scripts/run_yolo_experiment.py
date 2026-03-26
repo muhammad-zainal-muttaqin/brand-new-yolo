@@ -7,13 +7,132 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+import torch
+import torch.nn.functional as F
+import yaml
 from ultralytics import YOLO
+from ultralytics.utils.loss import v8DetectionLoss
 
 
 LEDGER_COLUMNS = [
     'timestamp_utc','phase','run_name','model','imgsz','epochs','batch','seed','split',
     'data','save_dir','best_weight','last_weight','precision','recall','map50','map50_95','status'
 ]
+IMAGE_SUFFIXES = {'.jpg', '.jpeg', '.png', '.bmp', '.webp'}
+
+
+class ProtocolDetectionLoss(v8DetectionLoss):
+    def __init__(
+        self,
+        model,
+        imbalance_strategy: str = 'none',
+        ordinal_strategy: str = 'standard',
+        class_weights: list[float] | None = None,
+        focal_gamma: float = 1.5,
+        focal_alpha: float = 0.25,
+    ):
+        super().__init__(model)
+        self.imbalance_strategy = imbalance_strategy
+        self.ordinal_strategy = ordinal_strategy
+        self.class_weights = torch.tensor(class_weights or [1.0] * self.nc, device=self.device, dtype=torch.float)
+        self.focal_gamma = focal_gamma
+        self.focal_alpha = focal_alpha
+
+    def _build_ordinal_weights(self, target_scores: torch.Tensor, fg_mask: torch.Tensor, gt_labels: torch.Tensor, target_gt_idx: torch.Tensor, dtype) -> torch.Tensor:
+        weights = torch.ones_like(target_scores, dtype=dtype)
+        if self.ordinal_strategy != 'ordinal_weighted':
+            return weights
+        if not fg_mask.any() or gt_labels.shape[1] == 0 or self.nc <= 1:
+            return weights
+        safe_idx = target_gt_idx.clamp(min=0, max=max(gt_labels.shape[1] - 1, 0))
+        assigned_cls = gt_labels.squeeze(-1).gather(1, safe_idx).long()
+        class_ids = torch.arange(self.nc, device=self.device).view(1, 1, -1)
+        dist = (class_ids - assigned_cls.unsqueeze(-1)).abs().float()
+        if self.nc == 2:
+            neg_weight = torch.where(dist > 0, torch.full_like(dist, 0.5), torch.ones_like(dist))
+        else:
+            denom = max(self.nc - 2, 1)
+            neg_weight = 0.5 + 0.5 * ((dist - 1).clamp(min=0) / denom)
+        ordinal = torch.where(target_scores > 0, torch.ones_like(target_scores), neg_weight)
+        return torch.where(fg_mask.unsqueeze(-1), ordinal.to(dtype), weights)
+
+    def _classification_loss(self, pred_scores: torch.Tensor, target_scores: torch.Tensor, fg_mask: torch.Tensor, gt_labels: torch.Tensor, target_gt_idx: torch.Tensor) -> torch.Tensor:
+        dtype = pred_scores.dtype
+        target_scores = target_scores.to(dtype)
+        loss = F.binary_cross_entropy_with_logits(pred_scores, target_scores, reduction='none')
+
+        if self.imbalance_strategy == 'focal':
+            pred_prob = pred_scores.sigmoid()
+            p_t = target_scores * pred_prob + (1 - target_scores) * (1 - pred_prob)
+            modulating_factor = (1.0 - p_t) ** self.focal_gamma
+            alpha = self.focal_alpha
+            alpha_factor = target_scores * alpha + (1 - target_scores) * (1 - alpha)
+            loss *= modulating_factor * alpha_factor
+        elif self.imbalance_strategy == 'class_weighted':
+            loss *= self.class_weights.to(dtype).view(1, 1, -1)
+
+        if self.ordinal_strategy == 'ordinal_weighted':
+            loss *= self._build_ordinal_weights(target_scores, fg_mask, gt_labels, target_gt_idx, dtype)
+
+        return loss
+
+    def get_assigned_targets_and_loss(self, preds: dict[str, torch.Tensor], batch: dict[str, torch.Tensor]) -> tuple:
+        loss = torch.zeros(3, device=self.device)
+        pred_distri, pred_scores = (
+            preds['boxes'].permute(0, 2, 1).contiguous(),
+            preds['scores'].permute(0, 2, 1).contiguous(),
+        )
+        anchor_points, stride_tensor = make_anchors(preds['feats'], self.stride, 0.5)
+
+        dtype = pred_scores.dtype
+        batch_size = pred_scores.shape[0]
+        imgsz = torch.tensor(preds['feats'][0].shape[2:], device=self.device, dtype=dtype) * self.stride[0]
+
+        targets = torch.cat((batch['batch_idx'].view(-1, 1), batch['cls'].view(-1, 1), batch['bboxes']), 1)
+        targets = self.preprocess(targets.to(self.device), batch_size, scale_tensor=imgsz[[1, 0, 1, 0]])
+        gt_labels, gt_bboxes = targets.split((1, 4), 2)
+        mask_gt = gt_bboxes.sum(2, keepdim=True).gt_(0.0)
+
+        pred_bboxes = self.bbox_decode(anchor_points, pred_distri)
+
+        _, target_bboxes, target_scores, fg_mask, target_gt_idx = self.assigner(
+            pred_scores.detach().sigmoid(),
+            (pred_bboxes.detach() * stride_tensor).type(gt_bboxes.dtype),
+            anchor_points * stride_tensor,
+            gt_labels,
+            gt_bboxes,
+            mask_gt,
+        )
+
+        target_scores_sum = max(target_scores.sum(), 1)
+        cls_loss = self._classification_loss(pred_scores, target_scores, fg_mask, gt_labels, target_gt_idx)
+        loss[1] = cls_loss.sum() / target_scores_sum
+
+        if fg_mask.sum():
+            loss[0], loss[2] = self.bbox_loss(
+                pred_distri,
+                pred_bboxes,
+                anchor_points,
+                target_bboxes / stride_tensor,
+                target_scores,
+                target_scores_sum,
+                fg_mask,
+                imgsz,
+                stride_tensor,
+            )
+
+        loss[0] *= self.hyp.box
+        loss[1] *= self.hyp.cls
+        loss[2] *= self.hyp.dfl
+        return (
+            (fg_mask, target_gt_idx, target_bboxes, anchor_points, stride_tensor),
+            loss,
+            loss.detach(),
+        )
+
+
+# Imported late in source order to keep the custom loss readable.
+from ultralytics.utils.loss import make_anchors  # noqa: E402
 
 
 def ensure_parent(path: Path) -> None:
@@ -56,6 +175,102 @@ def write_latest_status(row: dict, save_dir: Path, status_path: Path) -> None:
     status_path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
 
 
+def load_yaml(path: str) -> dict:
+    return yaml.safe_load(Path(path).read_text(encoding='utf-8-sig'))
+
+
+def resolve_dataset_root(cfg: dict, yaml_path: Path) -> Path:
+    root = Path(cfg.get('path', yaml_path.parent))
+    if not root.is_absolute():
+        root = (yaml_path.parent / root).resolve()
+    return root
+
+
+def resolve_entry_path(base: Path, entry: str) -> Path:
+    p = Path(entry)
+    if p.is_absolute():
+        return p
+    return (base / p).resolve()
+
+
+def iter_split_images(data_yaml: str, split: str) -> list[Path]:
+    yaml_path = Path(data_yaml).resolve()
+    cfg = load_yaml(str(yaml_path))
+    root = resolve_dataset_root(cfg, yaml_path)
+    entry = cfg[split]
+    target = resolve_entry_path(root, entry)
+    if target.is_file():
+        images = []
+        for line in target.read_text(encoding='utf-8').splitlines():
+            line = line.strip()
+            if line:
+                images.append(Path(line))
+        return images
+    if target.is_dir():
+        return sorted([p for p in target.rglob('*') if p.suffix.lower() in IMAGE_SUFFIXES])
+    raise FileNotFoundError(f'Could not resolve split {split}: {target}')
+
+
+def image_to_label_path(image_path: Path) -> Path:
+    parts = list(image_path.parts)
+    if 'images' in parts:
+        idx = parts.index('images')
+        parts[idx] = 'labels'
+        return Path(*parts).with_suffix('.txt')
+    return Path(str(image_path).replace('/images/', '/labels/')).with_suffix('.txt')
+
+
+def compute_class_weights(data_yaml: str, nc: int) -> list[float]:
+    counts = [0] * nc
+    for img_path in iter_split_images(data_yaml, 'train'):
+        label_path = image_to_label_path(img_path)
+        if not label_path.exists():
+            continue
+        for line in label_path.read_text(encoding='utf-8').splitlines():
+            parts = line.strip().split()
+            if not parts:
+                continue
+            cls = int(float(parts[0]))
+            if 0 <= cls < nc:
+                counts[cls] += 1
+    safe_counts = [c if c > 0 else 1 for c in counts]
+    inv = [sum(safe_counts) / c for c in safe_counts]
+    mean_inv = sum(inv) / len(inv)
+    return [x / mean_inv for x in inv]
+
+
+def install_custom_detection_loss(
+    model: YOLO,
+    task: str,
+    imbalance_strategy: str,
+    ordinal_strategy: str,
+    data_yaml: str,
+    focal_gamma: float,
+) -> None:
+    if task != 'detect':
+        return
+    if imbalance_strategy == 'none' and ordinal_strategy == 'standard':
+        return
+    class_weights = None
+    if imbalance_strategy == 'class_weighted':
+        cfg = load_yaml(data_yaml)
+        nc = int(cfg['nc'])
+        class_weights = compute_class_weights(data_yaml, nc)
+    detection_model = model.model
+
+    def init_criterion():
+        return ProtocolDetectionLoss(
+            detection_model,
+            imbalance_strategy=imbalance_strategy,
+            ordinal_strategy=ordinal_strategy,
+            class_weights=class_weights,
+            focal_gamma=focal_gamma,
+        )
+
+    detection_model.init_criterion = init_criterion
+    detection_model.criterion = None
+
+
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser()
     p.add_argument('--phase', required=True)
@@ -91,12 +306,26 @@ def parse_args() -> argparse.Namespace:
     p.add_argument('--copy-paste', type=float, default=None)
     p.add_argument('--close-mosaic', type=int, default=None)
     p.add_argument('--conf', type=float, default=None)
+    p.add_argument('--imbalance-strategy', choices=['none', 'class_weighted', 'focal'], default='none')
+    p.add_argument('--ordinal-strategy', choices=['standard', 'ordinal_weighted', 'coral'], default='standard')
+    p.add_argument('--focal-gamma', type=float, default=1.5)
     return p.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    if args.ordinal_strategy == 'coral' and args.task != 'classify':
+        raise ValueError('CORAL hanya relevan untuk pipeline classify / two-stage classifier.')
+
     model = YOLO(args.model)
+    install_custom_detection_loss(
+        model=model,
+        task=args.task,
+        imbalance_strategy=args.imbalance_strategy,
+        ordinal_strategy=args.ordinal_strategy,
+        data_yaml=args.data,
+        focal_gamma=args.focal_gamma,
+    )
 
     if args.min_epochs:
         def keep_training_until_min_epochs(trainer):
@@ -198,6 +427,24 @@ def main() -> None:
         'min_epochs': args.min_epochs,
         'patience': args.patience,
         'task': args.task,
+        'optimizer': args.optimizer,
+        'lr0': args.lr0,
+        'lrf': args.lrf,
+        'imbalance_strategy': args.imbalance_strategy,
+        'ordinal_strategy': args.ordinal_strategy,
+        'focal_gamma': args.focal_gamma,
+        'augmentations': {
+            'hsv_h': args.hsv_h,
+            'hsv_s': args.hsv_s,
+            'hsv_v': args.hsv_v,
+            'degrees': args.degrees,
+            'translate': args.translate,
+            'scale': args.scale,
+            'mosaic': args.mosaic,
+            'mixup': args.mixup,
+            'copy_paste': args.copy_paste,
+            'close_mosaic': args.close_mosaic,
+        },
     }
 
     summary_path = Path(f'outputs/{args.phase}/{args.name}_summary.json')

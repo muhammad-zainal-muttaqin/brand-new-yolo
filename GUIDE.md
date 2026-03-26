@@ -1,483 +1,153 @@
 # GUIDE.md
 
-# Panduan Operasional E0 Baseline Protocol
+# Panduan Operasional E0 di Repo Ini
 
-Dokumen ini adalah **guide eksekusi praktis** untuk menjalankan protokol **E0** secara bertahap di repo ini, lengkap dengan **checklist**, **aturan lanjut/stop**, **artefak yang harus dihasilkan**, dan **batasan otomatisasi**.
+Dokumen ini adalah **runbook operasional** untuk menjalankan E0 di repo `brand-new-yolo`.
 
----
+- **Sumber protocol canonical**: `E0.md`
+- **Sumber asli flowchart**: `https://github.com/muhammad-zainal-muttaqin/YOLOBench/blob/main/E0_Protocol_Flowchart.html`
+- **Peran dokumen ini**: menjabarkan bagaimana protocol canonical dijalankan **secara nyata** di workspace ini, termasuk policy Git, policy artefak, lock file, dan override operasional yang sudah diputuskan selama eksekusi.
 
-## 1. Tujuan Dokumen
-
-Tujuan `GUIDE.md`:
-- menjadi **runbook utama** untuk menjalankan E0,
-- menjadi **checklist progres** yang bisa diperbarui bertahap,
-- menjadi **kontrak operasional**: apa yang bisa dijalankan otomatis oleh agent, apa yang wajib berhenti dan dilaporkan,
-- mencegah eksperimen acak di luar protokol.
+> Catatan label: flowchart memakai `M1–M4`, sedangkan dataset aktif di workspace ini memakai `B1–B4`. **Source of truth operasional di repo ini adalah:** `B1 = buah paling matang / ripe`, `B4 = buah paling mengkal / belum matang`. Jadi urutan biologis `B1 → B4` bergerak dari **paling matang** ke **paling belum matang**, dan interpretasi ini **tidak boleh tertukar**.
 
 ---
 
-## 2. Jawaban Singkat: Bisakah E0 dijalankan tanpa supervisi?
+## 1. Prinsip Sinkronisasi Dokumen
 
-### Jawaban jujur
-**Ya, E0 dapat dijalankan sangat otonom.** Agent akan bekerja sendiri dari bootstrap sampai finalisasi, dan hanya boleh berhenti jika benar-benar terblokir secara teknis atau jika perbaikan yang diperlukan akan menjadi terlalu spekulatif.
+Aturan sinkronisasi yang dipakai mulai sekarang:
 
-### Yang bisa dijalankan otomatis
-- setup environment,
-- validasi struktur dataset,
-- EDA dataset,
-- resolution sweep,
-- learning curve,
-- one-stage baseline,
-- perbandingan model baseline antar arsitektur,
-- hyperparameter tuning terstruktur,
-- logging hasil,
-- pembuatan tabel, ringkasan, dan laporan phase-by-phase,
-- update checklist progres.
-
-### Yang tetap menantang meski dikerjakan otomatis
-- audit visual label yang membutuhkan penilaian manusia masih punya keterbatasan akurasi,
-- keputusan ilmiah final bisa tetap ambigu jika hasil saling bertentangan,
-- perubahan definisi kelas tetap berisiko jika bertentangan dengan label guide asli.
-
-### Kesimpulan operasional
-Mode kerja yang dipakai adalah:
-
-> **agent-driven, self-healing first, human escalation only if truly blocked**
-
-Artinya saya menjalankan E0 **secara bertahap dan otomatis**, dan jika muncul masalah kritis yang **masih bisa diperbaiki secara teknis**, saya harus **memperbaikinya sendiri terlebih dahulu**, misalnya:
-- membetulkan path dataset,
-- memperbaiki split yang tidak valid,
-- membersihkan file/label rusak,
-- memperbaiki mismatch image-label,
-- menyusun ulang artefak eksperimen yang gagal.
-
-Saya hanya boleh berhenti jika masalah itu memang **tidak bisa diselesaikan secara aman dan teknis** di workspace ini.
+1. `E0.md` = **referensi protocol canonical** yang harus mencerminkan flowchart YOLOBench.
+2. `GUIDE.md` = **runbook eksekusi** untuk repo ini.
+3. `scripts/e0_master_autonomous.py` = **orchestrator** yang harus mengikuti `GUIDE.md`.
+4. Jika ada perbedaan antara canonical protocol dan kebutuhan operasional repo ini, perbedaannya **harus ditulis eksplisit** di `GUIDE.md`, bukan disembunyikan.
 
 ---
 
-## 3. Status Repo Saat Dokumen Ini Dibuat
+## 2. Fakta Repo dan Status Nyata Saat Ini
 
-### Temuan saat audit awal
-- Repo ini **belum memuat kode training lengkap**.
-- Folder `Dataset-YOLO/` di repo hanya berisi metadata.
-- Namun dataset aktual **tersedia** di path yang dirujuk `data.yaml`, yaitu:
-  - `/workspace/Dataset-Sawit-YOLO`
-- Struktur dataset aktual terdeteksi lengkap:
-  - `images/train`, `images/val`, `images/test`
-  - `labels/train`, `labels/val`, `labels/test`
-- Hitungan aktual yang terdeteksi di workspace:
+### Dataset aktif
+- source of truth dataset: `/workspace/Dataset-Sawit-YOLO`
+- `Dataset-YOLO/data.yaml` menunjuk ke dataset aktif tersebut
+- split aktual terverifikasi:
   - train `2764`
   - val `604`
   - test `624`
-  - total image `3992`
-  - total label `3992`
-- Dependency penting kini sudah siap:
-  - `torch` ada
-  - `ultralytics` sudah terpasang
-  - `pandas` sudah terpasang
-  - `matplotlib` sudah terpasang
-- GPU tersedia: **NVIDIA A40**
-- `git lfs` belum tersedia
-- Audit Phase 0 awal sudah selesai:
-  - pairing image-label valid
-  - group leakage antar split = `0`
-  - 4 label invalid ditemukan dan sudah diperbaiki otomatis
+- total images `3992`
+- total labels `3992`
+- total instances `17987`
+- empty-label images `83`
+- invalid label issues setelah self-heal: `0`
+- group overlap antar split: `0`
 
-### Implikasi
-E0 **sudah masuk eksekusi nyata**: environment inti siap, dataset tervalidasi, dan Phase 0 sedang berjalan.
+### Environment aktif
+- Python `3.11.15`
+- GPU `NVIDIA A40`
+- `torch`, `ultralytics`, `pandas`, `matplotlib`, `seaborn` sudah tersedia
+- `git lfs` **belum** tersedia
 
----
+### Status phase yang sudah benar-benar selesai
+- [x] Bootstrap environment
+- [x] Phase 0 — Validation & Calibration
+- [x] Phase 1A — Pipeline Decision
+- [ ] Phase 1B canonical flowchart-synced
+- [ ] Phase 2 canonical flowchart-synced
+- [ ] Phase 3 canonical flowchart-synced
+- [ ] Final report canonical
 
-## 4. Prinsip Eksekusi
-
-Semua eksekusi E0 harus mengikuti prinsip berikut:
-
-1. **Data-first**
-   - Jangan training sebelum data tervalidasi.
-
-2. **Satu fase, satu keputusan**
-   - Jangan lompat ke phase berikut jika gate phase sebelumnya belum jelas.
-
-3. **Semua hasil harus tersimpan**
-   - Setiap phase harus menghasilkan file artefak yang bisa ditinjau ulang.
-
-4. **Bandingkan apple-to-apple**
-   - Split, resolusi, seed, dan rejim evaluasi harus tercatat.
-
-5. **Self-healing pada kondisi kritis yang masih bisa diperbaiki**
-   - Bila quality gate atau audit menemukan masalah, agent harus **mencoba memperbaiki sendiri terlebih dahulu**.
-   - Stop hanya boleh dilakukan jika masalah itu memang tidak bisa diperbaiki secara aman/teknis, atau jika perbaikannya akan mengubah makna ilmiah task secara spekulatif.
-
-6. **Lock setup inti setelah dipilih**
-   - Pipeline, arsitektur/model, dan resolusi final **tidak dipreset dari awal**, tetapi **dipilih berdasarkan hasil run yang sah**.
-   - Setelah pipeline, arsitektur/model, dan resolusi final dipilih, setup inti itu **dikunci** sampai Phase 3.
-   - Contoh: jika hasil terbaik menunjukkan **`yolo11s` + `640px`**, maka sampai finalisasi Phase 3 agent **tidak boleh** mengganti ke `yolo11m`, `yolo11l`, `1024px`, atau setup inti lain.
-   - Jika hasil terbaik justru model lain, maka model itulah yang dikunci.
-   - Setelah lock, yang boleh berubah hanya komponen yang memang termasuk ruang tuning Phase 2, seperti learning rate, batch size, loss strategy, dan augmentasi.
-
-7. **Batas ukuran model untuk semua training/run E0**
-   - Semua training, benchmark, tuning, retrain final, dan testing dalam E0 **harus memakai model dengan ukuran kurang dari atau sama dengan medium**.
-   - Varian **large (`l`)**, **xlarge (`x`)**, atau yang lebih besar **dilarang** dipakai dalam bentuk apa pun pada E0.
-   - Secara praktis, kandidat model dibatasi ke varian seperti `n`, `s`, dan `m` atau ekuivalennya dalam family model yang diuji.
-   - Dengan policy ini, weight hasil run diharapkan cukup kecil untuk ikut disimpan ke GitHub.
-
-8. **`GUIDE.md` adalah living document**
-   - `GUIDE.md` harus diperbarui secara berkala selama eksekusi berlangsung.
-   - Jika environment berubah, misalnya dependency yang sebelumnya belum terpasang menjadi sudah terpasang, status di `GUIDE.md` harus ikut diperbarui.
-   - Jika alur kerja aktual berubah agar lebih sesuai dengan realitas eksekusi, perubahan itu harus dicerminkan di `GUIDE.md` tanpa melanggar policy inti yang sudah disetujui.
-   - Setiap akhir phase atau checkpoint penting, agent harus menyinkronkan kondisi nyata eksekusi ke `GUIDE.md`.
-
-9. **Aturan minimum untuk training run yang dianggap sah**
-   - Semua training run yang dipakai untuk pengambilan keputusan eksperimen harus dijalankan minimal **30 epoch**.
-   - Early stopping untuk run non-final boleh dipakai, tetapi nilai **`patience` wajib 10** kecuali ada perubahan eksplisit yang nanti dicatat.
-   - Run pendek di bawah 30 epoch hanya boleh diperlakukan sebagai smoke test / bootstrap, bukan evidence utama untuk memilih setup.
+### Catatan penting status saat ini
+- Phase 0 sudah selesai dan resolusi kerja saat ini adalah **`640`**.
+- Phase 1A sudah selesai dan pipeline yang dipilih adalah **`one-stage`**.
+- Ada **partial legacy runs** untuk Phase 1B yang dijalankan sebelum sinkronisasi ulang ke flowchart canonical.
+- Legacy runs itu **tidak otomatis cukup** untuk menyatakan Phase 1B canonical selesai, karena roster model dan aturan orchestration sebelumnya belum sepenuhnya sinkron dengan flowchart canonical.
 
 ---
 
-## 5. Struktur Folder yang Direkomendasikan
+## 3. Override Operasional Repo Ini
 
-Target struktur kerja minimal:
+Bagian ini adalah aturan lokal yang **wajib** dipatuhi orchestrator di repo ini.
 
-```text
-.
-├── GUIDE.md
-├── CONTEXT.md
-├── E0.md
-├── Dataset-YOLO/
-│   ├── images/
-│   │   ├── train/
-│   │   ├── val/
-│   │   └── test/
-│   ├── labels/
-│   │   ├── train/
-│   │   ├── val/
-│   │   └── test/
-│   ├── data.yaml
-│   └── README.md
-├── scripts/
-│   ├── setup_env.sh
-│   ├── validate_dataset.py
-│   ├── phase0_eda.py
-│   ├── phase0_resolution.py
-│   ├── phase0_learning_curve.py
-│   ├── phase1_one_stage.py
-│   ├── phase1_arch_sweep.py
-│   ├── phase2_tuning.py
-│   ├── phase3_finalize.py
-│   └── aggregate_results.py
-├── outputs/
-│   ├── phase0/
-│   ├── phase1/
-│   ├── phase2/
-│   ├── phase3/
-│   └── reports/
-└── runs/
-```
+### 3.1 Ukuran model maksimum
+- Semua eksperimen E0 di repo ini **dibatasi sampai ukuran medium**.
+- Varian `large`, `xlarge`, atau lebih besar **dilarang**.
+- Ini konsisten dengan roster canonical yang dipakai di repo ini (`n/s/m` atau ekuivalennya, plus `yolov9c`).
 
-Catatan: folder `scripts/`, `outputs/`, dan `runs/` bisa dibuat bertahap.
+### 3.2 Semua weight wajib tersimpan dan ter-push
+- Karena model dibatasi sampai medium, semua weight run dianggap cukup aman untuk ikut disimpan.
+- Setiap akhir run, minimal `best.pt` dan `last.pt` harus ikut dipertahankan jika tersedia.
+- Default policy: **commit + push setiap akhir run**.
 
----
+### 3.3 GitHub sync policy
+- remote target: `https://github.com/muhammad-zainal-muttaqin/brand-new-yolo`
+- autentikasi memakai `GITHUB_TOKEN`
+- token **tidak boleh** ditulis ke file, log, atau commit
+- jika push gagal:
+  1. hasil tetap disimpan lokal,
+  2. kegagalan dicatat ke `outputs/reports/git_sync_log.md`,
+  3. retry otomatis dilakukan,
+  4. status boleh lanjut dengan label **pending sync**
 
-## 6. Checklist Master E0
+### 3.4 Run sah untuk pengambilan keputusan
+- run keputusan harus **minimal 30 epoch aktual**
+- smoke test / bootstrap di bawah itu tidak boleh jadi dasar keputusan akhir
+- untuk eksekusi repo ini, policy operasional run sah memakai **`patience=10`** kecuali nanti ada override eksplisit baru
+- parameter penting seperti `patience`, `lr0`, `batch`, loss strategy, dan augmentation profile harus tercatat eksplisit di nama run atau file summary
 
-Gunakan checklist ini sebagai tracker utama.
+### 3.5 Override gate Phase 1B
+Canonical flowchart menyatakan:
+- jika **best mAP50 < 70%**, seharusnya stop sebelum Phase 2/3
 
-## 6.1 Readiness Checklist
+**Override eksplisit untuk repo ini:**
+- gate ini **diabaikan untuk eksekusi saat ini**
+- eksperimen **tetap lanjut** ke Phase 2 dan Phase 3 walaupun `mAP50 < 70%`
+- namun status gate tetap harus **dicatat apa adanya** di artefak dan report
 
-- [x] Repo berhasil diaudit
-- [x] Dataset image tersedia pada path aktif `data.yaml`
-- [x] Dataset label tersedia pada path aktif `data.yaml`
-- [x] `data.yaml` menunjuk path yang benar
-- [x] Semua split (`train/val/test`) ada
-- [x] Pairing image-label valid
-- [x] Dependency Python terpasang
-- [x] `ultralytics` terpasang
-- [x] `pandas` terpasang
-- [x] GPU terdeteksi
-- [x] Direktori output dibuat
-- [x] Format logging eksperimen disiapkan
-- [x] `GITHUB_TOKEN` tersedia di environment
-- [x] Remote GitHub valid dan bisa di-push
-
-## 6.2 Phase 0 — Validation & Calibration
-
-### Task A — EDA dan Validasi Dataset
-- [x] Hitung jumlah image per split
-- [x] Hitung jumlah label per split
-- [x] Hitung distribusi kelas B1-B4
-- [x] Cek image tanpa label
-- [x] Cek bbox invalid / out-of-range
-- [x] Cek ukuran bbox kecil ekstrem
-- [x] Cek ukuran objek per kelas
-- [x] Cek konsistensi nama file image-label
-- [x] Cek tree-group leakage antar split
-- [x] Simpan report EDA
-- [ ] Simpan visual sample / hard cases
-
-### Task B — Resolution Sweep
-- [x] Jalankan baseline pada `imgsz=640`, seed 1
-- [x] Jalankan baseline pada `imgsz=640`, seed 2
-- [x] Jalankan baseline pada `imgsz=1024`, seed 1
-- [x] Jalankan baseline pada `imgsz=1024`, seed 2
-- [x] Bandingkan mean metric 640 vs 1024
-- [x] Tetapkan resolusi kerja
-
-### Task C — Learning Curve
-- [x] Train subset 25%
-- [x] Train subset 50%
-- [x] Train subset 75%
-- [x] Train subset 100%
-- [ ] Plot learning curve
-- [x] Tentukan indikasi saturasi / masih butuh data
-
-### Gate Phase 0
-- [x] Jika ditemukan label error berat, lakukan perbaikan otomatis yang aman semampunya
-- [x] Jika split tidak valid, lakukan perbaikan split secara otomatis
-- [x] Split final valid dan bebas leakage?
-- [x] Resolusi final dipilih
-- [x] Kecukupan data dinilai
-
-## 6.3 Phase 1A — Pipeline Decision
-
-- [x] Jalankan one-stage baseline 4 kelas
-- [x] Siapkan two-stage design (jika data mendukung)
-- [x] Jalankan stage-1 detector 1 kelas
-- [x] Jalankan stage-2 maturity classifier
-- [x] Bandingkan one-stage vs two-stage
-- [x] Analisis confusion B2/B3
-- [x] Tetapkan pipeline final
-
-## 6.4 Phase 1B — Architecture Sweep
-
-**Policy ukuran model untuk Phase 1B:**
-- Kandidat model untuk benchmark **harus** berukuran **kurang dari atau sama dengan medium**.
-- Varian **large (`l`)**, **xlarge (`x`)**, atau yang lebih besar **tidak boleh** masuk daftar uji.
-- Jika sebuah family model memakai naming berbeda, hanya ambil varian yang ekuivalen sampai kelas medium.
-
-- [ ] Tentukan daftar model yang akan diuji (maksimal size medium)
-- [ ] Pastikan tidak ada model `large` atau di atasnya di benchmark
-- [ ] Tetapkan hyperparameter default yang terkunci
-- [ ] Jalankan seed 1 untuk semua model
-- [ ] Jalankan seed 2 untuk semua model
-- [ ] Rekap mean dan std metrik
-- [ ] Identifikasi top-2 / top-3 model
-- [ ] Analisis per-class failure
-- [ ] Evaluasi khusus B4
-
-### Gate Phase 1
-- [ ] mAP cukup layak untuk lanjut?
-- [ ] Top model terpilih
-- [ ] Model terpilih memenuhi policy size maksimal medium
-- [ ] Failure mode terdokumentasi
-- [ ] Pipeline final dikunci
-- [ ] Arsitektur/model final dikunci
-- [ ] Resolusi final dikunci
-- [ ] File kontrak setup final dibuat
-
-## 6.5 Phase 2 — Hyperparameter Optimization
-
-**Aturan keras Phase 2:**
-- Phase 2 **tidak boleh** mengganti pipeline, arsitektur/model, atau resolusi yang sudah dikunci pada akhir Phase 1.
-- Jika setup final yang terkunci adalah `yolo11s-640`, maka semua eksperimen Phase 2 wajib tetap memakai `yolo11s-640`.
-- Model yang dipakai di Phase 2 tetap **harus** memenuhi policy ukuran **<= medium**.
-- Phase 2 hanya boleh mengubah hyperparameter training dan komponen optimasi yang memang termasuk ruang tuning.
-
-### Step 0a — Imbalance Handling
-- [ ] Baseline no weighting
-- [ ] Class weighting
-- [ ] Focal loss / alternatif imbalance-aware
-- [ ] Pilih strategi terbaik
-
-### Step 0b — Ordinal / Class-Relationship Handling
-- [ ] Standard loss baseline
-- [ ] Ordinal-aware variant (jika tersedia)
-- [ ] CORAL / CORN untuk cabang classifier (jika two-stage)
-- [ ] Pilih strategi terbaik
-
-### Step 1 — Learning Rate
-- [ ] Uji `0.0005`
-- [ ] Uji `0.001`
-- [ ] Uji `0.002`
-- [ ] Pilih LR terbaik
-
-### Step 2 — Batch Size
-- [ ] Uji `8`
-- [ ] Uji `16`
-- [ ] Uji `32`
-- [ ] Pilih batch terbaik
-
-### Step 3 — Augmentation
-- [ ] Light
-- [ ] Medium
-- [ ] Heavy
-- [ ] Pilih augment terbaik
-
-### Gate Phase 2
-- [ ] Improvement bermakna atas baseline?
-- [ ] Jika <1% dan tidak stabil, kembali ke baseline terbaik
-- [ ] Konfigurasi final phase 2 dipilih
-
-## 6.6 Phase 3 — Final Validation
-
-**Aturan keras Phase 3:**
-- Retrain final dan evaluasi final wajib memakai **setup inti yang sama** dengan yang sudah dikunci.
-- Jika setup final yang terkunci adalah `yolo11s-640`, maka Phase 3 tetap memakai `yolo11s-640`.
-- Model yang dipakai di Phase 3 tetap **harus** memenuhi policy ukuran **<= medium**.
-- Phase 3 bukan tempat mengganti model yang sudah kalah di phase sebelumnya.
-
-- [ ] Retrain final pada train+val
-- [ ] Nonaktifkan early stopping jika sesuai protokol
-- [ ] Simpan weight final
-- [ ] Jalankan evaluasi final pada test/holdout yang sah
-- [ ] Threshold sweep confidence
-- [ ] Optimalkan recall B4 dan confusion B2/B3
-- [ ] Export model deploy format
-- [ ] Cek ukuran model
-- [ ] Cek inference viability
-- [ ] Ambil 20 error terburuk
-- [ ] Lakukan error analysis
-- [ ] Tulis ringkasan final
-
-### Gate Phase 3
-- [ ] Jika error analysis menemukan masalah label yang bisa diperbaiki, lakukan perbaikan lalu ulang evaluasi yang diperlukan
-- [ ] Final metric tervalidasi
-- [ ] Final decision tercatat
-
-## 6.7 Final Deliverables Checklist
-
-- [ ] Report EDA
-- [ ] Report resolution sweep
-- [ ] Report learning curve
-- [ ] Report pipeline decision
-- [ ] Report architecture benchmark
-- [ ] Report tuning phase 2
-- [ ] Final confusion matrix
-- [ ] Final summary report
-- [ ] Ledger hasil eksperimen
-- [ ] Semua weight run sudah ikut tersimpan dan ter-push
-- [ ] Checklist ini diperbarui lengkap
+Alasan override:
+- kondisi baseline saat ini membuat target `70% mAP50` sangat mungkin belum realistis,
+- tetapi user secara eksplisit meminta pipeline **tetap lanjut** untuk memperoleh baseline lengkap end-to-end.
 
 ---
 
-## 7. Apa yang Akan Diotomatisasi oleh Agent
+## 4. Aturan Lock yang Berlaku di Repo Ini
 
-Jika Anda meminta saya menjalankan E0 secara bertahap, default perilaku saya seharusnya seperti ini:
+Agar tetap selaras dengan flowchart canonical **dan** kebutuhan operasional repo ini, lock diberlakukan sebagai berikut:
 
-### Policy penyimpanan hasil setiap run
-Setiap kali **satu run eksperimen selesai**, agent harus:
-1. menyimpan artefak run ke folder output yang sesuai,
-2. mengekstrak metrik utama ke file ringkasan/ledger,
-3. memperbarui checklist progres jika ada milestone yang selesai,
-4. membuat commit Git,
-5. melakukan push ke repository GitHub yang ditentukan.
+### Setelah Phase 0
+yang dikunci:
+- split final
+- resolution final
+- data sufficiency assessment
 
-### Definisi minimal “hasil run” yang wajib disimpan
-Untuk setiap run, minimal simpan:
-- konfigurasi run,
-- nama model,
-- resolusi,
-- seed,
-- split / evaluation regime,
-- metrik utama (`mAP50`, `mAP50-95`, per-class bila ada),
-- weight hasil run minimal `best` dan `last` jika tersedia,
-- path artefak penting,
-- timestamp,
-- status run (`success`, `failed`, `stopped`).
+### Setelah Phase 1A
+yang dikunci:
+- pipeline final (`one-stage` atau `two-stage`)
 
-### Default artefak yang di-push ke GitHub
-Secara default, agent mendorong artefak berikut ke GitHub:
-- file konfigurasi,
-- CSV/TSV hasil,
-- ringkasan Markdown,
-- plot/gambar laporan yang ukurannya wajar,
-- checklist dan ledger,
-- **semua weight hasil run**.
+### Setelah Phase 1B
+yang dikunci di `outputs/phase1/locked_setup.yaml`:
+- pipeline final
+- resolution final
+- **scope arsitektur finalis untuk Phase 2** (`top 2–3 architectures`)
 
-### Policy weight wajib push
-- Karena eksperimen dibatasi hanya sampai model size **medium**, setiap weight hasil run dianggap cukup aman untuk di-push ke GitHub.
-- Maka, untuk setiap run, agent **wajib** ikut menyimpan dan mendorong weight yang relevan, minimal `best` dan `last` jika tersedia.
-- Weight final Phase 3 juga **wajib** ikut di-commit dan di-push.
-- Jika suatu weight ternyata gagal di-push karena masalah teknis GitHub atau jaringan, agent tetap menyimpan lokal, mencatat kegagalan sinkronisasi, lalu berhenti untuk melapor.
+> Artinya: setelah akhir Phase 1B, Phase 2 **tidak boleh** memasukkan arsitektur baru di luar finalis yang sudah dipilih.
 
-### Ledger hasil run
-Disarankan ada ledger terstruktur, misalnya:
-- `outputs/reports/run_ledger.csv`
-- atau `outputs/reports/run_ledger.tsv`
+### Setelah Phase 2
+file `outputs/phase1/locked_setup.yaml` **harus diperbarui** sehingga memuat:
+- model final tunggal untuk Phase 3
+- hyperparameter final
+- loss strategy final
+- batch final
+- LR final
+- augmentation final
 
-Setiap run baru harus menambah satu baris ke ledger itu.
-
-### Mode otomatis yang diinginkan
-1. **Audit readiness**
-2. **Setup environment**
-3. **Validasi dataset**
-4. **Jalankan Phase 0**
-5. **Simpan hasil run + update ledger + commit + push**
-6. **Tulis ringkasan + update checklist**
-7. **Jika gate lulus, lanjut Phase 1**
-8. **Simpan hasil run + update ledger + commit + push**
-9. **Tulis ringkasan + update checklist**
-10. **Jika gate lulus, lanjut Phase 2**
-11. **Simpan hasil run + update ledger + commit + push**
-12. **Tulis ringkasan + update checklist**
-13. **Jika gate lulus, lanjut Phase 3**
-14. **Simpan hasil run + update ledger + commit + push**
-15. **Tulis laporan final**
-
-### Aturan update progres
-Setelah tiap phase, checklist pada file ini harus diperbarui dari `[ ]` menjadi `[x]` hanya jika artefak benar-benar ada.
+### Phase 3
+- wajib **membaca** `outputs/phase1/locked_setup.yaml`
+- wajib memakai pipeline, resolution, dan model final yang ada di file lock itu
+- tidak boleh membuka architecture search lagi
 
 ---
 
-## 8. Batasan Otomatisasi: Kapan Agent Harus Stop
+## 5. Artefak Wajib per Fase
 
-Agent **wajib mencoba memperbaiki sendiri lebih dulu**. Stop dan lapor hanya jika terjadi salah satu kondisi berikut **setelah upaya perbaikan yang wajar gagal**:
-
-### Git persistence / push policy
-- Push dilakukan ke repository:
-  - `https://github.com/muhammad-zainal-muttaqin/brand-new-yolo`
-- Autentikasi memakai environment variable:
-  - `GITHUB_TOKEN`
-- Token **tidak boleh** ditulis ke file, log, atau commit.
-- Agent hanya boleh memakai token pada saat operasi push.
-- Push setiap run harus mencakup artefak laporan **dan weight run**.
-- Jika push gagal karena auth/network/permission, agent harus:
-  1. tetap menyimpan hasil run secara lokal,
-  2. mencatat bahwa sinkronisasi GitHub gagal,
-  3. mencoba retry otomatis dengan backoff yang wajar,
-  4. jika masih gagal, lanjutkan eksekusi dengan status **pending sync** dan coba sinkronisasi lagi pada checkpoint berikutnya.
-
-### A. Data tidak siap dan tidak berhasil diperbaiki
-- folder image kosong,
-- folder label kosong,
-- banyak file label hilang yang tidak bisa direkonstruksi,
-- `data.yaml` salah path dan tidak bisa dibetulkan secara aman,
-- split train/val/test tidak ada dan tidak bisa dibangun ulang secara sah,
-- tree leakage berat yang tidak bisa diperbaiki dengan resplit yang valid,
-- label format rusak dan tidak bisa dipulihkan.
-
-### B. Quality gate gagal dan tidak berhasil diperbaiki
-- indikasi label error berat yang tidak bisa dibersihkan secara aman,
-- terlalu banyak bbox invalid yang tidak bisa diperbaiki,
-- hasil eksperimen tidak valid karena data mismatch yang tidak bisa diselesaikan.
-
-### C. Konflik ilmiah / kebijakan eksperimen
-- split pada dokumen berbeda dengan split aktual,
-- definisi kelas tidak konsisten dan memengaruhi evaluasi,
-- prosedur two-stage memerlukan keputusan desain yang belum dipaku.
-
-### D. Keterbatasan teknis
-- dependency gagal terpasang,
-- disk tidak cukup,
-- runtime melebihi batas wajar,
-- training crash berulang.
-
----
-
-## 9. Artefak yang Harus Dihasilkan per Fase
-
-## 9.1 Phase 0
-Minimal hasil:
-
+## 5.1 Phase 0
 ```text
 outputs/phase0/
 ├── dataset_audit.json
@@ -490,8 +160,7 @@ outputs/phase0/
 └── phase0_summary.md
 ```
 
-## 9.2 Phase 1
-
+## 5.2 Phase 1
 ```text
 outputs/phase1/
 ├── one_stage_results.csv
@@ -499,221 +168,203 @@ outputs/phase1/
 ├── architecture_benchmark.csv
 ├── per_class_metrics.csv
 ├── locked_setup.yaml
-└── phase1_summary.md
+├── phase1_summary.md
+├── phase1b_top3.csv
+└── phase1b_error_stratification.csv
 ```
 
-## 9.3 Phase 2
-
+## 5.3 Phase 2
 ```text
 outputs/phase2/
-├── tuning_results.csv
+├── imbalance_sweep.csv
+├── ordinal_sweep.csv
 ├── lr_sweep.csv
 ├── batch_sweep.csv
 ├── aug_sweep.csv
+├── tuning_results.csv
+├── final_hparams.yaml
 └── phase2_summary.md
 ```
 
-## 9.4 Phase 3
-
+## 5.4 Phase 3
 ```text
 outputs/phase3/
 ├── final_metrics.csv
 ├── confusion_matrix.csv
 ├── threshold_sweep.csv
+├── error_stratification.csv
 ├── error_analysis.md
 ├── deploy_check.md
-└── final_report.md
+├── final_report.md
+├── final_data.yaml
+└── trainval.txt
 ```
 
-## 9.5 Artefak ledger dan sinkronisasi Git
-
+## 5.5 Ledger dan status
 ```text
 outputs/reports/
 ├── run_ledger.csv
 ├── latest_status.md
-└── git_sync_log.md
+├── git_sync_log.md
+├── master_state.json
+├── autopilot.log
+├── autopilot_monitor.log
+└── master_autopilot_console.log
 ```
 
-Keterangan:
-- `run_ledger.csv` menyimpan ringkasan semua run
-- `latest_status.md` menyimpan status eksekusi terakhir
-- `git_sync_log.md` mencatat commit/push yang berhasil atau gagal
+---
+
+## 6. Checklist Operasional
+
+## 6.1 Readiness
+- [x] Repo diaudit
+- [x] Dataset aktif ditemukan
+- [x] `data.yaml` tervalidasi
+- [x] Split train/val/test tervalidasi
+- [x] Pairing image-label tervalidasi
+- [x] Invalid label dibersihkan
+- [x] Dependency Python tersedia
+- [x] GPU tersedia
+- [x] Struktur output ada
+- [x] Ledger eksperimen ada
+- [x] `GITHUB_TOKEN` tersedia
+- [x] Remote Git valid
+
+## 6.2 Phase 0 — Done
+- [x] EDA
+- [x] Resolution sweep
+- [x] Learning curve
+- [x] Resolusi final dipilih (`640`)
+- [x] Split bebas leakage
+- [x] Label audit selesai
+- [ ] Visual sample / hard cases
+- [ ] Plot learning curve final
+
+## 6.3 Phase 1A — Done
+- [x] One-stage baseline
+- [x] Two-stage baseline komponen
+- [x] Analisis confusion kelas berdekatan
+- [x] Pipeline final dipilih: `one-stage`
+
+## 6.4 Phase 1B — Canonical flowchart-synced (belum selesai)
+
+### Roster model canonical yang harus dipakai
+- [ ] `yolov8n.pt`
+- [ ] `yolov8s.pt`
+- [ ] `yolov8m.pt`
+- [ ] `yolov9c.pt`
+- [ ] `yolov10n.pt`
+- [ ] `yolov10s.pt`
+- [ ] `yolov10m.pt`
+- [ ] `yolo26n.pt`
+- [ ] `yolo26s.pt`
+- [ ] `yolo26m.pt`
+- [ ] `yolo11m.pt`
+
+### Aturan Phase 1B
+- [ ] Semua model dijalankan dalam pipeline `one-stage`
+- [ ] Semua model dijalankan pada resolution `640`
+- [ ] `lr0=0.001`
+- [ ] `batch=16`
+- [ ] medium augmentation
+- [ ] 2 seeds per model
+- [ ] tracking per-class `B1/B2/B3/B4`
+- [ ] top-3 model diidentifikasi
+- [ ] error stratification worst-20 untuk top-3 dibuat
+- [ ] `M4/B4` feasibility dicatat
+- [ ] `outputs/phase1/locked_setup.yaml` dibuat untuk finalis Phase 2
+
+### Catatan legacy
+- run Phase 1B lama yang berada **di luar roster canonical** atau memakai orchestrator lama harus diperlakukan sebagai **legacy exploratory evidence**, bukan bukti final Phase 1B canonical.
+
+## 6.5 Phase 2 — Canonical flowchart-synced (belum selesai)
+- [ ] hanya memakai arsitektur finalis dari `locked_setup.yaml`
+- [ ] Step 0a: imbalance (`none`, `class_weighted`, `focal_gamma_1.5`)
+- [ ] Step 0b: ordinal (`standard`, `ordinal_weighted`; `CORAL` hanya jika two-stage)
+- [ ] Step 1: LR (`0.0005`, `0.001`, `0.002`)
+- [ ] Step 2: batch (`8`, `16`, `32`)
+- [ ] Step 3: augmentation (`light`, `medium`, `heavy`)
+- [ ] parameter dikunci step-by-step
+- [ ] 2 seeds untuk setiap kandidat utama
+- [ ] 3+ seeds pada final config
+- [ ] jika improvement `<1%`, revert ke baseline terbaik Phase 1
+- [ ] model final tunggal + config final ditulis ke `locked_setup.yaml`
+
+## 6.6 Phase 3 — Canonical flowchart-synced (belum selesai)
+- [ ] membaca `outputs/phase1/locked_setup.yaml`
+- [ ] retrain final pada `train+val`
+- [ ] no early stopping
+- [ ] evaluasi final pada `test`
+- [ ] threshold sweep `0.1–0.5`
+- [ ] tracking confusion `B2/B3` dan `B3/B4`
+- [ ] tracking recall `B4`
+- [ ] export TFLite
+- [ ] cek ukuran `<100MB`
+- [ ] optional INT8 export dicoba
+- [ ] error stratification worst-20 dibuat
+- [ ] final report ditulis
 
 ---
 
-## 10. Kebijakan Keputusan Otomatis per Gate
+## 7. Policy Otomatisasi
 
-### Phase 0
-- Jika split valid, data valid, dan tidak ada red flag label berat → **lanjut**
-- Jika ditemukan label error atau split bermasalah, agent harus **memperbaikinya terlebih dahulu** lalu mengulang validasi yang relevan
-- Jika 1024 hanya naik kecil dan cost jauh lebih tinggi → pilih **640**
+Default perilaku agent untuk setiap run:
+1. jalankan eksperimen,
+2. simpan artefak run,
+3. tulis summary JSON,
+4. append ke `outputs/reports/run_ledger.csv`,
+5. update `outputs/reports/latest_status.md`,
+6. commit Git,
+7. push ke GitHub,
+8. catat status sinkronisasi di `outputs/reports/git_sync_log.md`.
 
-### Phase 1A
-- Jika two-stage unggul jelas dan stabil → pilih **two-stage**
-- Jika tidak unggul berarti → pilih **one-stage**
-
-### Phase 1B
-- Pilih top model berdasarkan:
-  1. `mAP50-95`
-  2. stabilitas antar seed
-  3. perilaku pada B2/B3/B4
-- Model final **harus berasal dari hasil benchmark/run**, bukan asumsi awal.
-- Setelah top model dipilih, agent harus membuat file **`outputs/phase1/locked_setup.yaml`**.
-- Isi file lock minimal:
-  - pipeline final,
-  - nama model final,
-  - resolusi final,
-  - split/evaluation regime,
-  - seed policy,
-  - data path.
-- Setelah file lock dibuat, setup inti **tidak boleh diubah** sampai Phase 3 kecuali ada instruksi eksplisit dari Anda.
-
-### Phase 2
-- Jika kenaikan <1% dan tidak konsisten → **rollback ke baseline terbaik**
-- Jangan lanjut tuning liar di luar grid yang sudah ditentukan tanpa alasan baru
-- Phase 2 **harus** membaca dan mematuhi `locked_setup.yaml`
-- Dilarang mengganti model size, backbone family, atau `imgsz` setelah lock
-
-### Phase 3
-- Final retrain **harus** memakai setup yang sama dengan `locked_setup.yaml`
-- Jika final model valid dan artefak lengkap → tulis final report
-- Jika error analysis menunjukkan masalah label dominan yang masih bisa diperbaiki, agent harus **memperbaiki lalu mengulang evaluasi yang diperlukan**
+### Isi minimal hasil run
+- nama run
+- phase
+- model
+- resolution
+- seed
+- split evaluasi
+- weight `best` dan `last`
+- precision / recall / `mAP50` / `mAP50-95`
+- timestamp
+- status
 
 ---
 
-## 11. Kebutuhan Minimum Sebelum Eksekusi Nyata
+## 8. Kapan Agent Boleh Stop
 
-Checklist ini wajib terpenuhi dulu sebelum saya mulai menjalankan E0 sungguhan.
-
-- [x] Dataset aktual tersedia di workspace
-- [x] Path dataset final sudah dipastikan
-- [x] Package `ultralytics` tersedia
-- [x] Package `pandas` tersedia
-- [x] Lokasi simpan hasil eksperimen ditetapkan ke default repo (`outputs/`, `runs/`)
-- [x] Rejim evaluasi default ditetapkan dari dataset aktual
-- [x] `GITHUB_TOKEN` tersedia dan valid untuk push
-
-### Rejim evaluasi default
-Secara default, agent harus memakai **split aktual yang benar-benar ada di workspace** sebagai source of truth.
-
-Prioritasnya:
-1. isi dataset aktual yang terdeteksi,
-2. `data.yaml` yang aktif,
-3. metadata/dokumen pendamping.
-
-Jika ada konflik angka split antar dokumen, agent harus mengikuti **evidence dari dataset aktual**, lalu mendokumentasikan keputusan itu di artefak phase 0 dan `GUIDE.md`.
-
----
-
-## 12. Rencana Eksekusi Bertahap yang Direkomendasikan
-
-### Tahap 1 — Bootstrap
-Tujuan:
-- siapkan dependency,
-- validasi dataset,
-- kunci source-of-truth split,
-- siapkan struktur output.
-
-### Tahap 2 — Phase 0 penuh
-Tujuan:
-- audit kualitas data,
-- pilih resolusi,
-- ukur learning curve.
-
-### Tahap 3 — Phase 1 baseline
-Tujuan:
-- tentukan pipeline,
-- tentukan model kandidat utama.
-
-### Tahap 4 — Phase 2 tuning terbatas
-Tujuan:
-- cari konfigurasi yang benar-benar layak dibanding baseline.
-
-### Tahap 5 — Phase 3 finalisasi
-Tujuan:
-- retrain final,
-- validasi final,
-- laporan final.
-
----
-
-## 13. Policy: Urutan Kerja Agent dalam Mode Otonom
-
-Dalam mode eksekusi otonom, urutan kerja saya adalah:
-
-1. audit repo dan dataset,
-2. setup environment,
-3. buat script pendukung bila belum ada,
-4. jalankan Phase 0,
-5. simpan hasil run, update ledger, commit, dan push ke GitHub,
-6. update `GUIDE.md`,
-7. jalankan Phase 1,
-8. jika Phase 1 sudah memilih setup final, buat `outputs/phase1/locked_setup.yaml`,
-9. simpan hasil run, update ledger, commit, dan push ke GitHub,
-10. lanjut otomatis ke Phase 2 dan Phase 3 **hanya dengan setup yang sudah dikunci**,
-11. pada akhir setiap run, ulangi langkah simpan hasil + commit + push,
-12. jika ada masalah, perbaiki sendiri terlebih dahulu,
-13. berhenti hanya jika benar-benar mentok secara teknis atau validitas ilmiah tidak bisa dijaga.
-
----
-
-## 14. Jawaban Praktis untuk Pertanyaan Anda
-
-### “Apakah semua E0 bisa dilakukan tanpa supervisi saya?”
-**Ya, target operasionalnya adalah sangat otonom.**
-
-Versi yang paling akurat:
-
-> Saya menjalankan E0 secara **otonom dengan prinsip self-healing**: agent mengeksekusi semua langkah teknis, memperbaiki masalah data/split/path/artefak jika masih memungkinkan, lalu hanya berhenti jika benar-benar mentok secara teknis atau jika perbaikannya akan menjadi spekulatif dan berisiko merusak validitas ilmiah.
-
-Contoh hal yang tetap bisa menjadi batas keras:
-- dataset benar-benar korup atau hilang,
-- push GitHub terus gagal,
+Agent wajib mencoba memperbaiki sendiri dulu. Stop hanya jika:
+- dataset korup / hilang,
+- split sah tidak bisa dibangun,
+- label rusak tidak bisa dipulihkan aman,
 - dependency inti tidak bisa dipasang,
-- conflict definisi kelas tidak bisa diselesaikan secara evidence-based dari data yang ada.
+- disk habis,
+- training crash berulang tanpa recovery,
+- push terus gagal dan status pending sync tidak bisa dijaga aman,
+- perubahan yang dibutuhkan akan merusak validitas ilmiah secara spekulatif.
+
+> Override khusus: gate `best mAP50 < 70%` **bukan alasan stop** untuk repo ini. Tetap lanjut.
 
 ---
 
-## 15. Status Eksekusi Saat Ini
+## 9. Immediate Next Actions
 
-### Status progres saat ini
-- [x] Bootstrap environment
-- [x] Dataset validation
-- [x] Phase 0
-- [x] Phase 1A
-- [ ] Phase 1B
-- [ ] Phase 2
-- [ ] Phase 3
-- [ ] Final report
+Urutan aksi yang sekarang paling benar:
+1. hentikan orchestrator lama yang belum sinkron dengan flowchart canonical,
+2. pakai master orchestrator baru yang flowchart-synced,
+3. jalankan ulang / lanjutkan **Phase 1B canonical** dengan roster 11 model,
+4. tulis finalis ke `outputs/phase1/locked_setup.yaml`,
+5. lanjut ke Phase 2 pada finalis itu,
+6. lanjut ke Phase 3 dengan final model yang di-lock.
 
 ---
 
-## 16. Next Action Recommended
+## 10. Status Sinkronisasi Otomatis
 
-Urutan aksi paling masuk akal dari kondisi repo saat ini:
-
-1. jalankan Phase 1A untuk membandingkan one-stage vs two-stage,
-2. lanjut ke Phase 1B architecture sweep pada resolusi kerja `640`,
-3. lock setup final di `outputs/phase1/locked_setup.yaml`,
-4. lanjut ke Phase 2.
-
----
-
-## 17. Catatan Penting untuk Repo Ini
-
-Dari audit awal, ada conflict metadata yang harus ditangani secara evidence-based:
-- `CONTEXT.md` menyebut split tertentu,
-- `Dataset-YOLO/README.md` menyebut split lain,
-- dataset aktual di workspace menunjukkan split yang benar-benar tersedia.
-
-Status saat ini:
-- `Dataset-YOLO/data.yaml` sudah diarahkan ke dataset aktual,
-- dataset aktual tersedia di `/workspace/Dataset-Sawit-YOLO`,
-- split aktual yang terdeteksi saat ini adalah:
-  - train `2764`
-  - val `604`
-  - test `624`
-
-Maka:
-
-> **Source of truth operasional untuk eksekusi E0 adalah dataset aktual yang tersedia di workspace, kecuali nanti Phase 0 menemukan alasan sah untuk memperbaikinya.**
+<!-- AUTOSTATUS:START -->
+- Canonical source synced: `E0.md` sekarang mengikuti flowchart YOLOBench.
+- GUIDE ini adalah runbook operasional yang sinkron dengan canonical protocol + override lokal.
+- Legacy partial Phase 1B runs masih ada di repo, tetapi Phase 1B canonical belum dinyatakan selesai.
+- `outputs/phase1/locked_setup.yaml` belum final untuk Phase 2/3.
+<!-- AUTOSTATUS:END -->
