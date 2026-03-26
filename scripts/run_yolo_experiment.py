@@ -77,6 +77,20 @@ def parse_args() -> argparse.Namespace:
     p.add_argument('--single-cls', action='store_true')
     p.add_argument('--pretrained', action='store_true')
     p.add_argument('--plots', action='store_true')
+    p.add_argument('--optimizer', default=None)
+    p.add_argument('--lr0', type=float, default=None)
+    p.add_argument('--lrf', type=float, default=None)
+    p.add_argument('--hsv-h', type=float, default=None)
+    p.add_argument('--hsv-s', type=float, default=None)
+    p.add_argument('--hsv-v', type=float, default=None)
+    p.add_argument('--degrees', type=float, default=None)
+    p.add_argument('--translate', type=float, default=None)
+    p.add_argument('--scale', type=float, default=None)
+    p.add_argument('--mosaic', type=float, default=None)
+    p.add_argument('--mixup', type=float, default=None)
+    p.add_argument('--copy-paste', type=float, default=None)
+    p.add_argument('--close-mosaic', type=int, default=None)
+    p.add_argument('--conf', type=float, default=None)
     return p.parse_args()
 
 
@@ -93,7 +107,7 @@ def main() -> None:
                     trainer.stopper.possible_stop = False
         model.add_callback('on_fit_epoch_end', keep_training_until_min_epochs)
 
-    train_results = model.train(
+    train_kwargs = dict(
         data=args.data,
         imgsz=args.imgsz,
         epochs=args.epochs,
@@ -110,12 +124,32 @@ def main() -> None:
         single_cls=args.single_cls,
         plots=args.plots,
     )
+    optional_train_args = {
+        'optimizer': args.optimizer,
+        'lr0': args.lr0,
+        'lrf': args.lrf,
+        'hsv_h': args.hsv_h,
+        'hsv_s': args.hsv_s,
+        'hsv_v': args.hsv_v,
+        'degrees': args.degrees,
+        'translate': args.translate,
+        'scale': args.scale,
+        'mosaic': args.mosaic,
+        'mixup': args.mixup,
+        'copy_paste': args.copy_paste,
+        'close_mosaic': args.close_mosaic,
+    }
+    for k, v in optional_train_args.items():
+        if v is not None:
+            train_kwargs[k] = v
+
+    train_results = model.train(**train_kwargs)
     save_dir = Path(train_results.save_dir)
     best_weight = save_dir / 'weights' / 'best.pt'
     last_weight = save_dir / 'weights' / 'last.pt'
 
     best_model = YOLO(str(best_weight if best_weight.exists() else args.model))
-    metrics = best_model.val(
+    val_kwargs = dict(
         data=args.data,
         split=args.split,
         imgsz=args.imgsz,
@@ -125,6 +159,9 @@ def main() -> None:
         single_cls=args.single_cls if args.task == 'detect' else False,
         plots=args.plots,
     )
+    if args.conf is not None:
+        val_kwargs['conf'] = args.conf
+    metrics = best_model.val(**val_kwargs)
 
     if args.task == 'classify':
         precision = float(getattr(metrics, 'top1', 0.0))
