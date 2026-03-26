@@ -6,3 +6,4 @@
 - 2026-03-26T22:35:36Z | commit b5e8ee9 | phase1b: add p1b_yolov8s_640_s1_e30p10m30
 - 2026-03-26T22:53:52Z | commit 83be3b8 | phase1b: add p1b_yolov8m_640_s1_e30p10m30
 - 2026-03-26T23:03:44Z | commit e40ad8f | phase1b: add p1b_yolo11n_640_s1_e30p10m30
+- 2026-03-26T23:09:18Z | commit dabd71d | sync E0 flowchart semantics and rewrite master orchestrator

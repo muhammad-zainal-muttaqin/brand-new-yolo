@@ -39,10 +39,12 @@ Gunakan sumber dengan urutan ini jika ada konflik:
 
 ### Caveat besar
 
-- **Nama tekstual B1-B4 tidak konsisten antar dokumen.**
-  - Ada dokumen yang menulis B1 = mentah.
-  - Ada dokumen lain yang menulis B1 = ripe.
-- Karena itu, **perlakukan B1/B2/B3/B4 sebagai kode label**, bukan nama biologis final, kecuali sedang membuka label guide asli.
+- **Nama tekstual B1-B4 memang pernah tidak konsisten antar dokumen historis.**
+- Namun untuk repo/workspace ini, source of truth operasional yang dipakai adalah:
+  - `B1 = buah paling matang / ripe`
+  - `B4 = buah paling mengkal / belum matang`
+- Jadi urutan biologis `B1 → B4` bergerak dari **paling matang** ke **paling belum matang**.
+- Jika ada dokumen historis yang bertentangan, ikuti mapping ini untuk eksekusi aktif repo ini.
 
 ---
 
