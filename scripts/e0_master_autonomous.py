@@ -1054,6 +1054,11 @@ def final_decision_bucket(map50: float, conf_b2_b3: float | None, all_classes_ge
     return 'INSUFFICIENT'
 
 
+def write_root_readme_and_checkpoint() -> None:
+    sh([sys.executable, 'scripts/write_root_readme.py'])
+    checkpoint('write final root README report')
+
+
 def phase3() -> None:
     log('phase3 start')
     lock = read_lock()
@@ -1200,6 +1205,7 @@ def main() -> None:
     phase1b()
     phase2()
     phase3()
+    write_root_readme_and_checkpoint()
     write_state({'status': 'completed', 'completed_utc': utc_now()})
     log('master orchestrator completed')
 
