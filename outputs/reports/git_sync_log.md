@@ -9,3 +9,4 @@
 - 2026-03-26T23:09:18Z | commit dabd71d | sync E0 flowchart semantics and rewrite master orchestrator
 - 2026-03-26T23:10:09Z | commit 7cee70a | fix master wait-loop self-detection
 - 2026-03-26T23:16:21Z | commit 2238076 | document detailed B1-B4 semantics
+- 2026-03-26T23:19:22Z | commit f908e83 | phase1: add p1bfc_yolov8n_640_s1_e30p10m30
