@@ -369,8 +369,9 @@ Urutan aksi yang sekarang paling benar:
 ## 10. Status Sinkronisasi Otomatis
 
 <!-- AUTOSTATUS:START -->
-- Canonical source synced: `E0.md` sekarang mengikuti flowchart YOLOBench.
-- GUIDE ini adalah runbook operasional yang sinkron dengan canonical protocol + override lokal.
-- Legacy partial Phase 1B runs masih ada di repo, tetapi Phase 1B canonical belum dinyatakan selesai.
-- `outputs/phase1/locked_setup.yaml` belum final untuk Phase 2/3.
+- Canonical source synced: `E0.md` mengikuti flowchart YOLOBench.
+- Phase 1B canonical flowchart-synced selesai untuk roster 11 model × 2 seeds.
+- Model tunggal untuk Phase 2 dikunci di `outputs/phase1/locked_setup.yaml`: `yolo11m.pt`.
+- Ranking referensi top-3 tetap disimpan di `outputs/phase1/phase1b_top3.csv`: `yolo11m.pt, yolov9c.pt, yolov8s.pt`.
+- Gate canonical `mAP50 >= 70%` tercatat sebagai `False`, tetapi override lokal repo tetap lanjut = `True`.
 <!-- AUTOSTATUS:END -->

@@ -34,3 +34,12 @@ Alasan:
 - one-stage sudah memberi baseline yang jujur dan langsung terukur pada task akhir 4 kelas,
 - stage-1 detector two-stage memang kuat untuk lokalisasi 1 kelas, tetapi stage-2 classifier pada GT crops masih mentok di sekitar 0.638 top-1,
 - karena classifier pada crop bersih saja masih menunjukkan confusion B2/B3 yang besar, belum ada evidence kuat bahwa two-stage akan mengungguli one-stage secara end-to-end.
+
+## Phase 1B — Canonical Flowchart-Synced Sweep
+
+- Phase 2 locked single best model: `yolo11m.pt`
+- Reference top-3 ranking saved to `outputs/phase1/phase1b_top3.csv`: `yolo11m.pt, yolov9c.pt, yolov8s.pt`
+- Best Phase 1B mean mAP50: `0.5298`
+- Best Phase 1B mean mAP50-95: `0.2570`
+- Gate canonical `mAP50 >= 0.70`: `False`
+- Local override continue despite gate: `True`

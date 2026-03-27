@@ -1,0 +1,37 @@
+protocol_source: https://github.com/muhammad-zainal-muttaqin/YOLOBench/blob/main/E0_Protocol_Flowchart.html
+dataset_label_semantics:
+  maturity_order:
+  - B1
+  - B2
+  - B3
+  - B4
+  direction: most_mature_to_least_mature
+  B1: buah merah, besar, bulat, posisi paling bawah tandan; paling matang / ripe
+  B2: buah masih hitam namun mulai transisi ke merah, sudah besar dan bulat, posisi
+    di atas B1
+  B3: buah full hitam, masih berduri, masih lonjong, posisi di atas B2
+  B4: buah paling kecil, paling dalam di batang/tandan, sulit terlihat, masih banyak
+    duri, hitam sampai hijau, masih bisa berkembang lebih besar; paling mengkal /
+    belum matang
+phase0_locked:
+  imgsz: 640
+  split: tree-grouped class-stratified
+phase1a_locked:
+  pipeline: one-stage
+phase1b_locked:
+  lock_stage: phase1b_single_best_locked
+  architecture_finalists:
+  - yolo11m.pt
+  selected_model: yolo11m.pt
+  selection_policy: single_best_only_for_phase2
+  baseline:
+    lr0: 0.001
+    batch: 16
+    patience: 10
+    epochs: 30
+    min_epochs: 30
+    aug_profile: medium
+  phase1b_gate_map50_pass: false
+  phase1b_gate_override_continue: true
+final_model: null
+final_config: null
