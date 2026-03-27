@@ -198,6 +198,7 @@ def read_json(path: Path) -> dict[str, Any]:
 
 
 def checkpoint(message: str) -> bool:
+    wait_for_external_activity()
     cleanup_downloaded_root_weights()
     sh(['git', 'add', '--ignore-removal', 'GUIDE.md', 'E0.md', 'CONTEXT.md', 'outputs', 'runs', 'scripts'])
     diff = subprocess.run(['git', 'diff', '--cached', '--quiet'], cwd=ROOT)
