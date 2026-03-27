@@ -5,6 +5,7 @@ Dokumen ini adalah evaluasi teknis untuk run final `p3_final_yolo11m_640_s42_e60
 ## Navigasi mini
 
 - Ringkasan repo: [README.md](../../README.md)
+- Snapshot reproducibility & termination: [outputs/reports/reproducibility_and_termination.md](../reports/reproducibility_and_termination.md)
 - Final report lintas fase: [outputs/phase3/final_report.md](final_report.md)
 - Eval JSON resmi: [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json](p3_final_yolo11m_640_s42_e60p15m60_eval.json)
 - Metadata run final: [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_summary.json](p3_final_yolo11m_640_s42_e60p15m60_summary.json)

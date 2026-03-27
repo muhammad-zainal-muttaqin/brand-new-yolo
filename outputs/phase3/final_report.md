@@ -5,6 +5,7 @@ Dokumen ini adalah ringkasan keputusan akhir eksperimen E0 dari **Phase 0** samp
 ## Navigasi mini
 
 - Ringkasan repo: [README.md](../../README.md)
+- Snapshot reproducibility & termination: [outputs/reports/reproducibility_and_termination.md](../reports/reproducibility_and_termination.md)
 - Phase 0 summary: [outputs/phase0/phase0_summary.md](../phase0/phase0_summary.md)
 - Phase 1 summary: [outputs/phase1/phase1_summary.md](../phase1/phase1_summary.md)
 - Phase 2 summary: [outputs/phase2/phase2_summary.md](../phase2/phase2_summary.md)

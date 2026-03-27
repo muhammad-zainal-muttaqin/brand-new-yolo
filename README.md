@@ -8,6 +8,7 @@ Jika Anda ingin ringkasan keputusan lintas fase, buka [outputs/phase3/final_repo
 
 - Untuk narasi akhir end-to-end, buka [outputs/phase3/final_report.md](outputs/phase3/final_report.md).
 - Untuk metrik test akhir yang lebih rinci, buka [outputs/phase3/final_evaluation.md](outputs/phase3/final_evaluation.md).
+- Untuk snapshot environment, reproducibility, dan checklist aman sebelum mematikan mesin, buka [outputs/reports/reproducibility_and_termination.md](outputs/reports/reproducibility_and_termination.md).
 - Untuk skor resmi run final, jadikan [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json](outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json) dan [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_summary.json](outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_summary.json) sebagai acuan utama.
 - Untuk weight final yang diamankan, buka [runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/best.pt](runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/best.pt).
 
