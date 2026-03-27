@@ -308,7 +308,7 @@ outputs/reports/
 ## 6.6 Phase 3 — Canonical flowchart-synced (belum selesai)
 - [ ] membaca `outputs/phase1/locked_setup.yaml`
 - [ ] retrain final pada `train+val`
-- [ ] no early stopping
+- [ ] override sesi ini: final retrain `60 epoch`, `patience=15`, `min_epochs=60`
 - [ ] evaluasi final pada `test`
 - [ ] threshold sweep `0.1–0.5`
 - [ ] tracking confusion `B2/B3` dan `B3/B4`
