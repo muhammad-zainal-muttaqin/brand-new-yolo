@@ -2,6 +2,16 @@
 
 Dokumen ini adalah ringkasan keputusan akhir eksperimen E0 dari **Phase 0** sampai **Phase 3**. Jika Anda baru membuka repo ini, mulai dari [README.md](../../README.md). Jika Anda ingin evaluasi teknis run final secara lebih rinci, lanjut ke [outputs/phase3/final_evaluation.md](final_evaluation.md).
 
+## Navigasi mini
+
+- Ringkasan repo: [README.md](../../README.md)
+- Phase 0 summary: [outputs/phase0/phase0_summary.md](../phase0/phase0_summary.md)
+- Phase 1 summary: [outputs/phase1/phase1_summary.md](../phase1/phase1_summary.md)
+- Phase 2 summary: [outputs/phase2/phase2_summary.md](../phase2/phase2_summary.md)
+- Evaluasi final teknis: [outputs/phase3/final_evaluation.md](final_evaluation.md)
+- Eval JSON resmi: [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json](p3_final_yolo11m_640_s42_e60p15m60_eval.json)
+- Weight final: [runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/best.pt](../../runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/best.pt)
+
 ## 1. Dokumen acuan yang dipakai
 
 Protokol canonical eksperimen repo ini diringkas di [E0.md](../../E0.md) dan runbook operasional repo ini dicatat di [GUIDE.md](../../GUIDE.md). Konteks keputusan tambahan ada di [CONTEXT.md](../../CONTEXT.md). Lock setup yang benar-benar dipakai lintas Phase 1B sampai Phase 3 dapat dicek langsung di [outputs/phase1/locked_setup.yaml](../phase1/locked_setup.yaml).

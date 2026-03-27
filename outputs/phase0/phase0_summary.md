@@ -1,5 +1,13 @@
 # Phase 0 Summary
 
+## Navigasi mini
+
+- Ringkasan repo: [README.md](../../README.md)
+- Audit dataset mentah: [outputs/phase0/dataset_audit.json](dataset_audit.json)
+- Learning curve mentah: [outputs/phase0/learning_curve.csv](learning_curve.csv)
+- Lanjut ke keputusan pipeline: [outputs/phase1/phase1_summary.md](../phase1/phase1_summary.md)
+- Lock setup akhir: [outputs/phase1/locked_setup.yaml](../phase1/locked_setup.yaml)
+
 ## Dataset validation
 
 - Status: **ok**

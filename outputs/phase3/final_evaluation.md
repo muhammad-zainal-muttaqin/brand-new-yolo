@@ -2,6 +2,17 @@
 
 Dokumen ini adalah evaluasi teknis untuk run final `p3_final_yolo11m_640_s42_e60p15m60`. Jika Anda ingin ringkasan lintas fase terlebih dahulu, baca [README.md](../../README.md). Jika Anda ingin narasi keputusan end-to-end, baca [outputs/phase3/final_report.md](final_report.md).
 
+## Navigasi mini
+
+- Ringkasan repo: [README.md](../../README.md)
+- Final report lintas fase: [outputs/phase3/final_report.md](final_report.md)
+- Eval JSON resmi: [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json](p3_final_yolo11m_640_s42_e60p15m60_eval.json)
+- Metadata run final: [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_summary.json](p3_final_yolo11m_640_s42_e60p15m60_summary.json)
+- Threshold sweep: [outputs/phase3/threshold_sweep.csv](threshold_sweep.csv)
+- Error analysis: [outputs/phase3/error_analysis.md](error_analysis.md)
+- Deploy check: [outputs/phase3/deploy_check.md](deploy_check.md)
+- Weight final: [runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/best.pt](../../runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/best.pt)
+
 ## 1. File sumber evaluasi yang dipakai
 
 Evaluasi pada dokumen ini dibaca langsung dari file-file berikut:

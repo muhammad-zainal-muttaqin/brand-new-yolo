@@ -1,5 +1,13 @@
 # Deploy Check
 
+## Navigasi mini
+
+- Ringkasan repo: [README.md](../../README.md)
+- Final report: [outputs/phase3/final_report.md](final_report.md)
+- Final evaluation: [outputs/phase3/final_evaluation.md](final_evaluation.md)
+- Eval JSON resmi: [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json](p3_final_yolo11m_640_s42_e60p15m60_eval.json)
+- Weight final: [runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/best.pt](../../runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/best.pt)
+
 - Status: **deferred by repo override**.
 - TFLite export: `skipped for now`
 - TFLite INT8 export: `skipped for now`

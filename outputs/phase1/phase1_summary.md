@@ -1,5 +1,16 @@
 # Phase 1A Summary
 
+## Navigasi mini
+
+- Ringkasan repo: [README.md](../../README.md)
+- Kembali ke resolusi/dataset: [outputs/phase0/phase0_summary.md](../phase0/phase0_summary.md)
+- Hasil one-stage: [outputs/phase1/one_stage_results.csv](one_stage_results.csv)
+- Hasil two-stage: [outputs/phase1/two_stage_results.csv](two_stage_results.csv)
+- Benchmark arsitektur Phase 1B: [outputs/phase1/architecture_benchmark.csv](architecture_benchmark.csv)
+- Top-3 Phase 1B: [outputs/phase1/phase1b_top3.csv](phase1b_top3.csv)
+- Lock setup final: [outputs/phase1/locked_setup.yaml](locked_setup.yaml)
+- Lanjut ke tuning: [outputs/phase2/phase2_summary.md](../phase2/phase2_summary.md)
+
 ## Inputs dari Phase 0
 
 - Resolusi kerja yang dipakai: `640`
