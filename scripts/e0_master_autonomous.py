@@ -718,7 +718,8 @@ def phase1b() -> dict[str, Any]:
             'mean_b4_recall': row['mean_b4_recall'],
         })
     write_csv(ROOT / 'outputs/phase1/architecture_benchmark.csv', arch_rows)
-    finalists = [row['model'] for row in ranked[:3]]
+    top3_models = [row['model'] for row in ranked[:3]]
+    finalists = [ranked[0]['model']]
     write_csv(ROOT / 'outputs/phase1/phase1b_top3.csv', [{
         'rank': i + 1,
         'model': row['model'],
@@ -729,7 +730,7 @@ def phase1b() -> dict[str, Any]:
     } for i, row in enumerate(ranked[:3])])
 
     error_rows: list[dict[str, Any]] = []
-    for model in finalists:
+    for model in top3_models:
         stem = model_stem(model)
         run_names = [f'p1bfc_{stem}_640_s{seed}_e30p10m30' for seed in PHASE1B_SEEDS]
         best_run = max(run_names, key=lambda n: float(read_json(summary_path('phase1', n))['map50']))
@@ -765,8 +766,10 @@ def phase1b() -> dict[str, Any]:
         'phase0_locked': {'imgsz': 640, 'split': 'tree-grouped class-stratified'},
         'phase1a_locked': {'pipeline': 'one-stage'},
         'phase1b_locked': {
-            'lock_stage': 'phase1b_finalists_locked',
+            'lock_stage': 'phase1b_single_best_locked',
             'architecture_finalists': finalists,
+            'selected_model': finalists[0],
+            'selection_policy': 'single_best_only_for_phase2',
             'baseline': {
                 'lr0': 0.001,
                 'batch': 16,
@@ -784,7 +787,8 @@ def phase1b() -> dict[str, Any]:
     write_lock(lock)
 
     phase1_summary_lines = [
-        f'- Finalists Phase 2: `{", ".join(finalists)}`',
+        f'- Phase 2 locked single best model: `{finalists[0]}`',
+        f'- Reference top-3 ranking saved to `outputs/phase1/phase1b_top3.csv`: `{", ".join(top3_models)}`',
         f'- Best Phase 1B mean mAP50: `{best_row["mean_map50"]:.4f}`',
         f'- Best Phase 1B mean mAP50-95: `{best_row["mean_map50_95"]:.4f}`',
         f'- Gate canonical `mAP50 >= 0.70`: `{gate_pass}`',
@@ -794,7 +798,8 @@ def phase1b() -> dict[str, Any]:
     update_guide_status([
         '- Canonical source synced: `E0.md` mengikuti flowchart YOLOBench.',
         '- Phase 1B canonical flowchart-synced selesai untuk roster 11 model × 2 seeds.',
-        f'- Finalists Phase 2 terkunci di `outputs/phase1/locked_setup.yaml`: `{", ".join(finalists)}`.',
+        f'- Model tunggal untuk Phase 2 dikunci di `outputs/phase1/locked_setup.yaml`: `{finalists[0]}`.',
+        f'- Ranking referensi top-3 tetap disimpan di `outputs/phase1/phase1b_top3.csv`: `{", ".join(top3_models)}`.',
         f'- Gate canonical `mAP50 >= 70%` tercatat sebagai `{gate_pass}`, tetapi override lokal repo tetap lanjut = `{PHASE1B_OVERRIDE_IGNORE_MAP70_STOP}`.',
     ])
     checkpoint('phase1b canonical sync complete')

@@ -131,9 +131,9 @@ yang dikunci:
 yang dikunci di `outputs/phase1/locked_setup.yaml`:
 - pipeline final
 - resolution final
-- **scope arsitektur finalis untuk Phase 2** (`top 2–3 architectures`)
+- **1 model terbaik tunggal untuk Phase 2**
 
-> Artinya: setelah akhir Phase 1B, Phase 2 **tidak boleh** memasukkan arsitektur baru di luar finalis yang sudah dipilih.
+> Override operasional repo ini: untuk mempercepat eksekusi, **Phase 2 hanya dijalankan pada 1 model terbaik dari Phase 1B**, bukan top-3. Setelah akhir Phase 1B, Phase 2 **tidak boleh** memasukkan arsitektur baru di luar model tunggal yang sudah di-lock.
 
 ### Setelah Phase 2
 file `outputs/phase1/locked_setup.yaml` **harus diperbarui** sehingga memuat:
@@ -275,23 +275,23 @@ outputs/reports/
 - [ ] medium augmentation
 - [ ] 2 seeds per model
 - [ ] tracking per-class `B1/B2/B3/B4`
-- [ ] top-3 model diidentifikasi
+- [ ] ranking top-3 referensi diidentifikasi
 - [ ] error stratification worst-20 untuk top-3 dibuat
 - [ ] `M4/B4` feasibility dicatat
-- [ ] `outputs/phase1/locked_setup.yaml` dibuat untuk finalis Phase 2
+- [ ] `outputs/phase1/locked_setup.yaml` dibuat untuk **1 model terbaik** yang dikunci ke Phase 2
 
 ### Catatan legacy
 - run Phase 1B lama yang berada **di luar roster canonical** atau memakai orchestrator lama harus diperlakukan sebagai **legacy exploratory evidence**, bukan bukti final Phase 1B canonical.
 
 ## 6.5 Phase 2 — Canonical flowchart-synced (belum selesai)
-- [ ] hanya memakai arsitektur finalis dari `locked_setup.yaml`
+- [ ] hanya memakai **1 model terbaik yang di-lock** dari `locked_setup.yaml`
 - [ ] Step 0a: imbalance (`none`, `class_weighted`, `focal_gamma_1.5`)
 - [ ] Step 0b: ordinal (`standard`, `ordinal_weighted`; `CORAL` hanya jika two-stage)
 - [ ] Step 1: LR (`0.0005`, `0.001`, `0.002`)
 - [ ] Step 2: batch (`8`, `16`, `32`)
 - [ ] Step 3: augmentation (`light`, `medium`, `heavy`)
 - [ ] parameter dikunci step-by-step
-- [ ] 2 seeds untuk setiap kandidat utama
+- [ ] 2 seeds untuk model tunggal yang dituning
 - [ ] 3+ seeds pada final config
 - [ ] jika improvement `<1%`, revert ke baseline terbaik Phase 1
 - [ ] model final tunggal + config final ditulis ke `locked_setup.yaml`
@@ -360,8 +360,8 @@ Urutan aksi yang sekarang paling benar:
 1. hentikan orchestrator lama yang belum sinkron dengan flowchart canonical,
 2. pakai master orchestrator baru yang flowchart-synced,
 3. jalankan ulang / lanjutkan **Phase 1B canonical** dengan roster 11 model,
-4. tulis finalis ke `outputs/phase1/locked_setup.yaml`,
-5. lanjut ke Phase 2 pada finalis itu,
+4. kunci **1 model terbaik** ke `outputs/phase1/locked_setup.yaml`,
+5. lanjut ke Phase 2 hanya pada model tunggal itu,
 6. lanjut ke Phase 3 dengan final model yang di-lock.
 
 ---

@@ -75,9 +75,12 @@ def summarize_phase1() -> str:
                 if key in semantics:
                     lines.append(f"- `{key}`: {semantics[key]}")
         if lock.get('phase1b_locked', {}).get('architecture_finalists'):
-            lines.append(
-                f"- Phase 2 finalists: `{', '.join(lock['phase1b_locked']['architecture_finalists'])}`"
-            )
+            locked_models = ', '.join(lock['phase1b_locked']['architecture_finalists'])
+            policy = lock.get('phase1b_locked', {}).get('selection_policy')
+            if policy == 'single_best_only_for_phase2':
+                lines.append(f"- Phase 2 locked model: `{locked_models}`")
+            else:
+                lines.append(f"- Phase 2 finalists: `{locked_models}`")
         if lock.get('final_model'):
             lines.append(f"- Final model for Phase 3: `{lock['final_model']}`")
     return '\n'.join([x for x in lines if x])
