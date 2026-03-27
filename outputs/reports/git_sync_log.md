@@ -25,3 +25,4 @@
 - 2026-03-27T02:29:58Z | commit 8900f5d | phase1: add p1bfc_yolov10s_640_s2_e30p10m30
 - 2026-03-27T02:41:50Z | commit 56265f2 | fix duplicate run logging and classify metric labeling
 - 2026-03-27T02:59:39Z | commit e8f2d0f | lock phase2 to single best phase1 model
+- 2026-03-27T03:24:50Z | commit f99c0bc | phase1: add p1bfc_yolo26n_640_s1_e30p10m30
