@@ -40,3 +40,4 @@
 - 2026-03-27T06:34:50Z | commit 33879c1 | phase2: add p2s0a_class_weighted_yolo11m_640_s1_e30p10m30
 - 2026-03-27T06:55:13Z | commit 8a43e03 | phase2: add p2s0a_class_weighted_yolo11m_640_s2_e30p10m30
 - 2026-03-27T07:15:37Z | commit 32a0cb9 | phase2: add p2s0a_focal15_yolo11m_640_s1_e30p10m30
+- 2026-03-27T07:36:06Z | commit 75d5423 | phase2: add p2s0a_focal15_yolo11m_640_s2_e30p10m30
