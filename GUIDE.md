@@ -379,8 +379,7 @@ Urutan aksi yang sekarang paling benar:
 
 <!-- AUTOSTATUS:START -->
 - Canonical source synced: `E0.md` mengikuti flowchart YOLOBench.
-- Phase 1B canonical selesai dan finalis Phase 2 sudah terkunci.
-- Phase 2 selesai. Model final untuk Phase 3: `yolo11m.pt`.
-- Final config Phase 2 ditulis ke `outputs/phase1/locked_setup.yaml` dan `outputs/phase2/final_hparams.yaml`.
-- Phase 2 memakai override plateau-aware: sisa branch loss/ordinal dilewati, lalu sweep dilanjutkan hanya untuk LR, batch, dan augmentation dari baseline loss setup.
+- Phase 3 selesai menggunakan model final `yolo11m.pt`.
+- Final report tersedia di `outputs/phase3/final_report.md` dengan bucket `NEEDS WORK`.
+- Mapping label repo tetap dikunci: `B1 -> B2 -> B3 -> B4` dari paling matang ke paling belum matang, lengkap dengan ciri visual/posisionalnya.
 <!-- AUTOSTATUS:END -->
