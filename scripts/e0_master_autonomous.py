@@ -35,6 +35,7 @@ PHASE2_SEEDS = [1, 2]
 PHASE2_CONFIRM_SEED = 3
 PHASE3_FINAL_SEED = 42
 PHASE1B_OVERRIDE_IGNORE_MAP70_STOP = True
+PHASE3_DEPLOY_CHECK_DEFERRED = True
 GUIDE_STATUS_START = '<!-- AUTOSTATUS:START -->'
 GUIDE_STATUS_END = '<!-- AUTOSTATUS:END -->'
 AUG_PROFILES = {
@@ -1180,20 +1181,27 @@ def phase3() -> None:
     write_csv(ROOT / 'outputs/phase3/confusion_matrix.csv', cm_rows)
 
     deploy_lines = ['# Deploy Check', '']
-    try:
-        export_fp = model.export(format='tflite', imgsz=640)
-        export_fp = Path(export_fp)
-        deploy_lines.append(f'- TFLite export: `{export_fp}`')
-        deploy_lines.append(f'- TFLite size MB: `{export_fp.stat().st_size / (1024*1024):.2f}`')
-    except Exception as e:
-        deploy_lines.append(f'- TFLite export failed: `{type(e).__name__}: {e}`')
-    try:
-        export_int8 = model.export(format='tflite', imgsz=640, int8=True, data='Dataset-YOLO/data.yaml')
-        export_int8 = Path(export_int8)
-        deploy_lines.append(f'- TFLite INT8 export: `{export_int8}`')
-        deploy_lines.append(f'- TFLite INT8 size MB: `{export_int8.stat().st_size / (1024*1024):.2f}`')
-    except Exception as e:
-        deploy_lines.append(f'- TFLite INT8 export failed: `{type(e).__name__}: {e}`')
+    if PHASE3_DEPLOY_CHECK_DEFERRED:
+        deploy_lines.append('- Status: **deferred by repo override**.')
+        deploy_lines.append('- TFLite export: `skipped for now`')
+        deploy_lines.append('- TFLite INT8 export: `skipped for now`')
+        deploy_lines.append('- Rationale: amankan final `best.pt` dan validasi metrik eksperimen lebih dulu; konversi deploy boleh dilakukan belakangan sebagai langkah engineering terpisah.')
+        deploy_lines.append('- Important: jika nanti dikonversi ke TFLite / INT8 / format lain, akurasi, ukuran, latency, dan kompatibilitas hardware **wajib divalidasi ulang** pada artefak hasil konversi itu.')
+    else:
+        try:
+            export_fp = model.export(format='tflite', imgsz=640)
+            export_fp = Path(export_fp)
+            deploy_lines.append(f'- TFLite export: `{export_fp}`')
+            deploy_lines.append(f'- TFLite size MB: `{export_fp.stat().st_size / (1024*1024):.2f}`')
+        except Exception as e:
+            deploy_lines.append(f'- TFLite export failed: `{type(e).__name__}: {e}`')
+        try:
+            export_int8 = model.export(format='tflite', imgsz=640, int8=True, data='Dataset-YOLO/data.yaml')
+            export_int8 = Path(export_int8)
+            deploy_lines.append(f'- TFLite INT8 export: `{export_int8}`')
+            deploy_lines.append(f'- TFLite INT8 size MB: `{export_int8.stat().st_size / (1024*1024):.2f}`')
+        except Exception as e:
+            deploy_lines.append(f'- TFLite INT8 export failed: `{type(e).__name__}: {e}`')
     deploy_lines.append(f'- Best weight size MB: `{Path(summary["best_weight"]).stat().st_size / (1024*1024):.2f}`')
     deploy_lines.append('- Inference viability nyata di tablet tetap perlu pengujian hardware terpisah bila device tersedia.')
     (ROOT / 'outputs/phase3/deploy_check.md').write_text('\n'.join(deploy_lines) + '\n', encoding='utf-8')
@@ -1238,6 +1246,7 @@ def phase3() -> None:
         f'- Confusion B2/B3: `{conf_b2_b3}`',
         f'- All classes >= 70% AP50: `{all_classes_ge70}`',
         f'- Decision bucket: **{decision}**',
+        f'- Deploy check in this run: `{ "deferred" if PHASE3_DEPLOY_CHECK_DEFERRED else "executed" }`',
         '',
         'Per semantic mapping repo ini:',
         '- `B1 = buah merah, besar, bulat, posisi paling bawah tandan; paling matang / ripe`',

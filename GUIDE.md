@@ -148,6 +148,8 @@ file `outputs/phase1/locked_setup.yaml` **harus diperbarui** sehingga memuat:
 - wajib **membaca** `outputs/phase1/locked_setup.yaml`
 - wajib memakai pipeline, resolution, dan model final yang ada di file lock itu
 - tidak boleh membuka architecture search lagi
+- untuk sesi repo ini, **deploy/TFLite/INT8 check boleh ditunda** setelah final `best.pt` aman
+- jika konversi deploy dilakukan nanti, validasi ulang akurasi/ukuran/latency/kompatibilitas device wajib dilakukan
 
 ---
 
@@ -304,9 +306,9 @@ outputs/reports/
 - [ ] threshold sweep `0.1–0.5`
 - [ ] tracking confusion `B2/B3` dan `B3/B4`
 - [ ] tracking recall `B4`
-- [ ] export TFLite
-- [ ] cek ukuran `<100MB`
-- [ ] optional INT8 export dicoba
+- [ ] deploy check ditandai **deferred** untuk sesi ini
+- [ ] final `best.pt` diamankan untuk konversi deploy di lain waktu
+- [ ] jika nanti dikonversi ke TFLite / INT8, validasi ulang dilakukan terpisah
 - [ ] error stratification worst-20 dibuat
 - [ ] final report ditulis
 
