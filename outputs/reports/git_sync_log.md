@@ -45,3 +45,4 @@
 - 2026-03-27T08:06:47Z | commit c9018fc | phase1b canonical sync complete
 - 2026-03-27T08:27:24Z | commit 21efbb4 | phase1b canonical sync complete
 - 2026-03-27T08:48:03Z | commit e7a7006 | phase2: add p2s1_lr0005_yolo11m_640_s2_e30p10m30
+- 2026-03-27T09:08:32Z | commit 2061546 | phase2: add p2s1_lr002_yolo11m_640_s1_e30p10m30
