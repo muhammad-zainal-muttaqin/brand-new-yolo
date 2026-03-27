@@ -48,3 +48,4 @@
 - 2026-03-27T09:08:32Z | commit 2061546 | phase2: add p2s1_lr002_yolo11m_640_s1_e30p10m30
 - 2026-03-27T09:28:51Z | commit ab6ceac | phase2: add p2s1_lr002_yolo11m_640_s2_e30p10m30
 - 2026-03-27T09:52:38Z | commit 8ce398b | phase2: add p2s2_bs8_yolo11m_640_s1_e30p10m30
+- 2026-03-27T09:57:26Z | commit de339ca | document safe cleanup and sync completed artifacts
