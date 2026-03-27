@@ -36,6 +36,11 @@ PHASE2_CONFIRM_SEED = 3
 PHASE3_FINAL_SEED = 42
 PHASE1B_OVERRIDE_IGNORE_MAP70_STOP = True
 PHASE3_DEPLOY_CHECK_DEFERRED = True
+PHASE2_OPTION_C_SKIP_REMAINING_LOSS_BRANCHES = True
+PHASE2_OPTION_C_REASON = (
+    'Observed plateau/identical curves on Phase 2 Step 0a loss variants; '
+    'repo override keeps baseline loss setup and continues only with LR, batch, and augmentation sweeps.'
+)
 GUIDE_STATUS_START = '<!-- AUTOSTATUS:START -->'
 GUIDE_STATUS_END = '<!-- AUTOSTATUS:END -->'
 AUG_PROFILES = {
@@ -580,6 +585,20 @@ def rank_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     )
 
 
+def phase2_plateau_like(rows: list[dict[str, Any]], tol: float = 1e-12) -> bool:
+    if len(rows) < 2:
+        return False
+    first = rows[0]
+    base_map50 = float(first['mean_map50'])
+    base_map50_95 = float(first['mean_map50_95'])
+    for row in rows[1:]:
+        if abs(float(row['mean_map50']) - base_map50) > tol:
+            return False
+        if abs(float(row['mean_map50_95']) - base_map50_95) > tol:
+            return False
+    return True
+
+
 def model_stem(model_name: str) -> str:
     return Path(model_name).stem
 
@@ -864,6 +883,7 @@ def phase2() -> dict[str, Any]:
     batch_rows: list[dict[str, Any]] = []
     aug_rows: list[dict[str, Any]] = []
     final_rows: list[dict[str, Any]] = []
+    phase2_override_notes: list[str] = []
 
     for model in finalists:
         base_phase1 = aggregate_runs('phase1', [f'p1bfc_{model_stem(model)}_640_s{seed}_e30p10m30' for seed in PHASE1B_SEEDS])
@@ -882,17 +902,31 @@ def phase2() -> dict[str, Any]:
             step0a_candidates.append(agg)
             imbalance_rows.append(agg)
         best0a = rank_rows(step0a_candidates)[0]
-        current['imbalance_strategy'] = best0a['imbalance_strategy']
+        step0a_plateau_override = PHASE2_OPTION_C_SKIP_REMAINING_LOSS_BRANCHES and phase2_plateau_like(step0a_candidates)
+        current['imbalance_strategy'] = 'none' if step0a_plateau_override else best0a['imbalance_strategy']
 
         step0b_tokens = [('standard', 'standard'), ('ordinal', 'ordinal_weighted')]
         step0b_candidates = []
-        for token, ordinal in step0b_tokens:
-            agg = aggregate_phase2_option(model, 'p2s0b', token, PHASE2_SEEDS, **current | {'ordinal_strategy': ordinal})
-            agg['ordinal_strategy'] = ordinal
-            step0b_candidates.append(agg)
-            ordinal_rows.append(agg)
-        best0b = rank_rows(step0b_candidates)[0]
-        current['ordinal_strategy'] = best0b['ordinal_strategy']
+        if step0a_plateau_override:
+            current['ordinal_strategy'] = 'standard'
+            ordinal_rows.append({
+                'model': model,
+                'option': 'skipped_after_step0a_plateau',
+                'ordinal_strategy': 'standard',
+                'status': 'skipped',
+                'note': PHASE2_OPTION_C_REASON,
+            })
+            phase2_override_notes.append(
+                f'- `{model}`: Step 0a plateau/identical, jadi baseline loss setup dikunci (`imbalance=none`, `ordinal=standard`) dan sisa branch Step 0b dilewati; sweep lanjut hanya untuk LR/batch/augmentation.'
+            )
+        else:
+            for token, ordinal in step0b_tokens:
+                agg = aggregate_phase2_option(model, 'p2s0b', token, PHASE2_SEEDS, **current | {'ordinal_strategy': ordinal})
+                agg['ordinal_strategy'] = ordinal
+                step0b_candidates.append(agg)
+                ordinal_rows.append(agg)
+            best0b = rank_rows(step0b_candidates)[0]
+            current['ordinal_strategy'] = best0b['ordinal_strategy']
 
         step1_candidates = []
         for token, lr in [('lr0005', 0.0005), ('lr001', 0.001), ('lr002', 0.002)]:
@@ -1018,6 +1052,14 @@ def phase2() -> dict[str, Any]:
     (ROOT / 'outputs/phase2').mkdir(parents=True, exist_ok=True)
     (ROOT / 'outputs/phase2/final_hparams.yaml').write_text(yaml.safe_dump(final_hparams, sort_keys=False), encoding='utf-8')
     phase2_lines = ['# Phase 2 Summary', '']
+    if phase2_override_notes:
+        phase2_lines.extend([
+            '## Operational override aktif',
+            '',
+            f'- `{PHASE2_OPTION_C_REASON}`',
+            *phase2_override_notes,
+            '',
+        ])
     for row in ranked_final:
         phase2_lines.append(
             "- "
@@ -1039,12 +1081,15 @@ def phase2() -> dict[str, Any]:
     lock['final_model'] = best_final['model']
     lock['final_config'] = final_hparams
     write_lock(lock)
-    update_guide_status([
+    guide_lines = [
         '- Canonical source synced: `E0.md` mengikuti flowchart YOLOBench.',
         '- Phase 1B canonical selesai dan finalis Phase 2 sudah terkunci.',
         f"- Phase 2 selesai. Model final untuk Phase 3: `{best_final['model']}`.",
         f"- Final config Phase 2 ditulis ke `outputs/phase1/locked_setup.yaml` dan `outputs/phase2/final_hparams.yaml`.",
-    ])
+    ]
+    if phase2_override_notes:
+        guide_lines.append('- Phase 2 memakai override plateau-aware: sisa branch loss/ordinal dilewati, lalu sweep dilanjutkan hanya untuk LR, batch, dan augmentation dari baseline loss setup.')
+    update_guide_status(guide_lines)
     checkpoint('phase2 canonical sync complete')
     return lock
 

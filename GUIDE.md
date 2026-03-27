@@ -298,6 +298,12 @@ outputs/reports/
 - [ ] jika improvement `<1%`, revert ke baseline terbaik Phase 1
 - [ ] model final tunggal + config final ditulis ke `locked_setup.yaml`
 
+### Override operasional aktif untuk sesi ini
+- Observasi nyata di `run_ledger.csv` + `results.csv` menunjukkan Step 0a (`none`, `class_weighted`, `focal15`) menghasilkan kurva yang identik per-seed, sehingga branch loss tersebut diperlakukan sebagai **plateau / suspicious duplicate behavior**.
+- Atas keputusan operasional sesi ini, setelah run aktif selesai, **sisa branch loss/ordinal yang mencurigakan tidak diteruskan penuh**.
+- Repo memakai **opsi C**: baseline loss setup tetap dikunci pada `imbalance=none` dan `ordinal=standard`, lalu sweep dilanjutkan hanya untuk **LR, batch, dan augmentation**.
+- Override ini harus dicatat di `outputs/phase2/phase2_summary.md` dan tidak boleh dipakai untuk membuka architecture search baru.
+
 ## 6.6 Phase 3 — Canonical flowchart-synced (belum selesai)
 - [ ] membaca `outputs/phase1/locked_setup.yaml`
 - [ ] retrain final pada `train+val`
