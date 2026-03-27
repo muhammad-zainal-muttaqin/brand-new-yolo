@@ -29,3 +29,4 @@
 - 2026-03-27T03:36:49Z | commit bad46a8 | phase1: add p1bfc_yolo26n_640_s2_e30p10m30
 - 2026-03-27T03:51:17Z | commit c6b8334 | phase1: add p1bfc_yolo26s_640_s1_e30p10m30
 - 2026-03-27T04:05:47Z | commit 36b028d | phase1: add p1bfc_yolo26s_640_s2_e30p10m30
+- 2026-03-27T04:28:40Z | commit f1637f5 | phase1: add p1bfc_yolo26m_640_s1_e30p10m30
