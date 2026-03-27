@@ -37,9 +37,13 @@ PHASE3_FINAL_SEED = 42
 PHASE1B_OVERRIDE_IGNORE_MAP70_STOP = True
 PHASE3_DEPLOY_CHECK_DEFERRED = True
 PHASE2_OPTION_C_SKIP_REMAINING_LOSS_BRANCHES = True
+PHASE2_OPTION_C_SKIP_LR001_RETRAIN = True
+PHASE2_OPTION_C_SKIP_BS32 = True
+PHASE2_OPTION_C_SKIP_AUG_HEAVY = True
 PHASE2_OPTION_C_REASON = (
     'Observed plateau/identical curves on Phase 2 Step 0a loss variants; '
-    'repo override keeps baseline loss setup and continues only with LR, batch, and augmentation sweeps.'
+    'repo override keeps baseline loss setup, reuses Phase 1B baseline for lr0=0.001, '
+    'and continues with a reduced sweep over LR, batch, and augmentation.'
 )
 GUIDE_STATUS_START = '<!-- AUTOSTATUS:START -->'
 GUIDE_STATUS_END = '<!-- AUTOSTATUS:END -->'
@@ -929,7 +933,23 @@ def phase2() -> dict[str, Any]:
             current['ordinal_strategy'] = best0b['ordinal_strategy']
 
         step1_candidates = []
-        for token, lr in [('lr0005', 0.0005), ('lr001', 0.001), ('lr002', 0.002)]:
+        step1_tokens = [('lr0005', 0.0005), ('lr001', 0.001), ('lr002', 0.002)]
+        if step0a_plateau_override and PHASE2_OPTION_C_SKIP_LR001_RETRAIN:
+            baseline_lr_ref = dict(base_phase1)
+            baseline_lr_ref.update({
+                'model': model,
+                'option': 'lr001_phase1_reference',
+                'lr0': float(baseline['lr0']),
+                'source': 'phase1b_baseline_reference',
+                'status': 'reused_reference',
+            })
+            step1_candidates.append(baseline_lr_ref)
+            lr_rows.append(baseline_lr_ref)
+            step1_tokens = [('lr0005', 0.0005), ('lr002', 0.002)]
+            phase2_override_notes.append(
+                f'- `{model}`: kandidat Step 1 `lr0=0.001` direuse dari baseline Phase 1B, jadi run `p2s1_lr001_*` dilewati.'
+            )
+        for token, lr in step1_tokens:
             agg = aggregate_phase2_option(model, 'p2s1', token, PHASE2_SEEDS, **current | {'lr0': lr})
             agg['lr0'] = lr
             step1_candidates.append(agg)
@@ -938,7 +958,13 @@ def phase2() -> dict[str, Any]:
         current['lr0'] = float(best1['lr0'])
 
         step2_candidates = []
-        for token, batch in [('bs8', 8), ('bs16', 16), ('bs32', 32)]:
+        step2_tokens = [('bs8', 8), ('bs16', 16), ('bs32', 32)]
+        if PHASE2_OPTION_C_SKIP_BS32:
+            step2_tokens = [('bs8', 8), ('bs16', 16)]
+            phase2_override_notes.append(
+                f'- `{model}`: kandidat Step 2 `batch=32` dilewati untuk menghemat 2 run dan menjaga sweep tetap fokus pada `8` vs `16`.'
+            )
+        for token, batch in step2_tokens:
             agg = aggregate_phase2_option(model, 'p2s2', token, PHASE2_SEEDS, **current | {'batch': batch})
             agg['batch'] = batch
             step2_candidates.append(agg)
@@ -947,7 +973,13 @@ def phase2() -> dict[str, Any]:
         current['batch'] = int(best2['batch'])
 
         step3_candidates = []
-        for token in ['light', 'medium', 'heavy']:
+        step3_tokens = ['light', 'medium', 'heavy']
+        if PHASE2_OPTION_C_SKIP_AUG_HEAVY:
+            step3_tokens = ['light', 'medium']
+            phase2_override_notes.append(
+                f'- `{model}`: kandidat Step 3 `heavy` dilewati untuk menghemat 2 run; sweep augmentation dibatasi pada `light` vs `medium`.'
+            )
+        for token in step3_tokens:
             agg = aggregate_phase2_option(model, 'p2s3', token, PHASE2_SEEDS, **current | {'aug_profile': token})
             agg['aug_profile'] = token
             step3_candidates.append(agg)

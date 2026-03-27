@@ -302,6 +302,7 @@ outputs/reports/
 - Observasi nyata di `run_ledger.csv` + `results.csv` menunjukkan Step 0a (`none`, `class_weighted`, `focal15`) menghasilkan kurva yang identik per-seed, sehingga branch loss tersebut diperlakukan sebagai **plateau / suspicious duplicate behavior**.
 - Atas keputusan operasional sesi ini, setelah run aktif selesai, **sisa branch loss/ordinal yang mencurigakan tidak diteruskan penuh**.
 - Repo memakai **opsi C**: baseline loss setup tetap dikunci pada `imbalance=none` dan `ordinal=standard`, lalu sweep dilanjutkan hanya untuk **LR, batch, dan augmentation**.
+- Untuk memangkas durasi lebih lanjut, kandidat berikut **tidak dijalankan ulang**: `p2s1_lr001_*` (direuse dari baseline Phase 1B), `p2s2_bs32_*`, dan `p2s3_heavy_*`.
 - Override ini harus dicatat di `outputs/phase2/phase2_summary.md` dan tidak boleh dipakai untuk membuka architecture search baru.
 
 ## 6.6 Phase 3 — Canonical flowchart-synced (belum selesai)
