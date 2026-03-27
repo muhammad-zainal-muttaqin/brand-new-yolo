@@ -36,3 +36,4 @@
 - 2026-03-27T05:33:35Z | commit 07fe883 | phase1b canonical sync complete
 - 2026-03-27T05:43:57Z | commit 0eba80a | defer phase3 deploy check until after final best weight
 - 2026-03-27T05:54:11Z | commit dc21bf4 | phase1b canonical sync complete
+- 2026-03-27T06:14:26Z | commit fa8be04 | phase2: add p2s0a_none_yolo11m_640_s2_e30p10m30
