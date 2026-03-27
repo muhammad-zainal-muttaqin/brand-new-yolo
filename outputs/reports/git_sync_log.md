@@ -53,3 +53,4 @@
 - 2026-03-27T10:36:52Z | commit 3662950 | phase2: add p2s2_bs16_yolo11m_640_s1_e30p10m30
 - 2026-03-27T10:57:25Z | commit eaccd23 | phase2: add p2s2_bs16_yolo11m_640_s2_e30p10m30
 - 2026-03-27T11:17:47Z | commit 6f0c64a | phase2: add p2s3_light_yolo11m_640_s1_e30p10m30
+- 2026-03-27T11:38:11Z | commit a23cc97 | phase2: add p2s3_light_yolo11m_640_s2_e30p10m30
