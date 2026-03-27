@@ -21,12 +21,12 @@ Jika Anda mulai membaca dari root repo, buka juga [README.md](../../README.md). 
 
 - Remote GitHub: `https://github.com/muhammad-zainal-muttaqin/brand-new-yolo.git`
 - Branch: `main`
-- Final archive commit: `e630868`
+- Final archive tag: `runpod-archive-e0-final-20260327`
 - Audit timestamp UTC: `2026-03-27T13:55:26Z`
 - Working directory saat eksperimen berjalan: `/workspace/brand-new-yolo`
 - Dataset root saat eksperimen berjalan: `/workspace/Dataset-Sawit-YOLO`
 
-Untuk reproduksi, **clone repo ini pada commit `e630868`**, bukan hanya pada branch `main` terbaru, agar isi dokumen, script, dan artefak yang dirujuk tetap konsisten.
+Untuk reproduksi, **clone repo ini lalu checkout tag `runpod-archive-e0-final-20260327`**, bukan hanya branch `main` terbaru, agar isi dokumen, script, dan artefak yang dirujuk tetap konsisten. Tag ini adalah referensi arsip final yang stabil untuk snapshot sebelum RunPod dimatikan.
 
 ## 2. Snapshot environment saat eksperimen berjalan
 
