@@ -1,0 +1,40 @@
+
+## 2026-03-27T02:03:28Z
+- active_run_preserved: p1bfc_yolov10s_640_s2_e30p10m30
+- removed_count: 35
+- freed_bytes_estimate: 968223126
+  - runs/detect/runs/e0/p0_yolo11n_640_s1_e3 | 10914483 bytes
+  - runs/detect/runs/e0/p0_yolo11n_1024_s1_e3 | 11037751 bytes
+  - runs/detect/runs/e0/p0_yolo11n_640_s2_e3 | 10914481 bytes
+  - runs/detect/runs/e0/p0_yolo11n_1024_s2_e3 | 11037749 bytes
+  - runs/detect/runs/e0/p0_yolo11n_640_s1_e30 | 10924261 bytes
+  - runs/detect/runs/e0/p0_yolo11n_1024_s1_e30 | 11047154 bytes
+  - runs/detect/runs/e0/p0_yolo11n_640_s1_e30p10m30 | 10924644 bytes
+  - runs/detect/runs/e0/p0_yolo11n_1024_s1_e30p10m30 | 11047909 bytes
+  - runs/detect/runs/e0/p0_yolo11n_640_s2_e30p10m30 | 10924626 bytes
+  - runs/detect/runs/e0/p0_yolo11n_1024_s2_e30p10m30 | 11047915 bytes
+  - runs/detect/runs/e0/p0_lc25_yolo11n_640_s1_e30p10m30 | 10924789 bytes
+  - runs/detect/runs/e0/p0_lc50_yolo11n_640_s1_e30p10m30 | 10924773 bytes
+  - runs/detect/runs/e0/p0_lc75_yolo11n_640_s1_e30p10m30 | 10924789 bytes
+  - runs/detect/runs/e0/p0_lc100_yolo11n_640_s1_e30p10m30 | 10924785 bytes
+  - runs/detect/runs/e0/p1a_stage1_singlecls_yolo11n_640_s1_e30p10m30 | 10922268 bytes
+  - runs/detect/runs/e0/p1a_stage1_singlecls_yolo11n_640_s2_e30p10m30 | 10922261 bytes
+  - runs/classify/runs/e0/p1a_stage2_cls_yolo11ncls_gtcrop_s1_e30p10m30 | 6389703 bytes
+  - runs/classify/runs/e0/p1a_stage2_cls_yolo11ncls_gtcrop_s2_e30p10m30 | 6389696 bytes
+  - runs/detect/runs/e0/p1b_yolov8n_640_s1_e30p10m30 | 12478088 bytes
+  - runs/detect/runs/e0/p1b_yolov8s_640_s1_e30p10m30 | 45018375 bytes
+  - runs/detect/runs/e0/p1b_yolov8m_640_s1_e30p10m30 | 104045149 bytes
+  - runs/detect/runs/e0/p1b_yolo11n_640_s1_e30p10m30 | 10924648 bytes
+  - runs/detect/runs/e0/p1bfc_yolov8n_640_s1_e30p10m30 | 12477985 bytes
+  - runs/detect/runs/e0/p1bfc_yolov8n_640_s2_e30p10m30 | 12477986 bytes
+  - runs/detect/runs/e0/p1bfc_yolov8s_640_s1_e30p10m30 | 45018275 bytes
+  - runs/detect/runs/e0/p1bfc_yolov8s_640_s2_e30p10m30 | 45018272 bytes
+  - runs/detect/runs/e0/p1bfc_yolov8m_640_s1_e30p10m30 | 104045042 bytes
+  - runs/detect/runs/e0/p1bfc_yolov8m_640_s2_e30p10m30 | 104045045 bytes
+  - runs/detect/runs/e0/p1bfc_yolov9c_640_s1_e30p10m30 | 103174256 bytes
+  - runs/detect/runs/e0/p1bfc_yolov9c_640_s2_e30p10m30 | 103174241 bytes
+  - runs/detect/runs/e0/p1bfc_yolov10n_640_s1_e30p10m30 | 11487802 bytes
+  - runs/detect/runs/e0/p1bfc_yolov10n_640_s2_e30p10m30 | 11487812 bytes
+  - runs/detect/runs/e0/p1bfc_yolov10s_640_s1_e30p10m30 | 33038549 bytes
+  - yolov10s.pt | 16623111 bytes
+  - yolo26n.pt | 5544453 bytes
