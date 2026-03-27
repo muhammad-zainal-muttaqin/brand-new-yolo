@@ -99,3 +99,12 @@ Alasan:
 - Best Phase 1B mean mAP50-95: `0.2570`
 - Gate canonical `mAP50 >= 0.70`: `False`
 - Local override continue despite gate: `True`
+
+## Phase 1B — Canonical Flowchart-Synced Sweep
+
+- Phase 2 locked single best model: `yolo11m.pt`
+- Reference top-3 ranking saved to `outputs/phase1/phase1b_top3.csv`: `yolo11m.pt, yolov9c.pt, yolov8s.pt`
+- Best Phase 1B mean mAP50: `0.5298`
+- Best Phase 1B mean mAP50-95: `0.2570`
+- Gate canonical `mAP50 >= 0.70`: `False`
+- Local override continue despite gate: `True`

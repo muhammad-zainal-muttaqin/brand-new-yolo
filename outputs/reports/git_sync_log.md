@@ -60,3 +60,4 @@
 - 2026-03-27T12:39:58Z | commit 5a0b06c | phase2 canonical sync complete
 - 2026-03-27T13:28:28Z | commit 4de3499 | phase3: add p3_final_yolo11m_640_s42_e60p15m60
 - 2026-03-27T13:29:41Z | commit 392bfb6 | phase3 canonical sync complete
+- 2026-03-27T13:51:37Z | commit 2e4baa6 | phase1b canonical sync complete

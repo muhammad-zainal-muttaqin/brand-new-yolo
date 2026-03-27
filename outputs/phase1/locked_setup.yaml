@@ -19,7 +19,7 @@ phase0_locked:
 phase1a_locked:
   pipeline: one-stage
 phase1b_locked:
-  lock_stage: phase2_final_model_locked
+  lock_stage: phase1b_single_best_locked
   architecture_finalists:
   - yolo11m.pt
   selected_model: yolo11m.pt
