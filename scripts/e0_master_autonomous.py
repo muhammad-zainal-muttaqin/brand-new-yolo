@@ -590,6 +590,37 @@ def write_lock(data: dict[str, Any]) -> None:
     LOCK_PATH.write_text(yaml.safe_dump(data, sort_keys=False), encoding='utf-8')
 
 
+def require_lock_keys(lock: dict[str, Any], keys: list[str], context: str) -> None:
+    missing = [k for k in keys if k not in lock or lock[k] in (None, '', [])]
+    if missing:
+        raise RuntimeError(f'{context}: missing lock keys {missing} in {LOCK_PATH}')
+
+
+def validate_phase2_lock(lock: dict[str, Any]) -> None:
+    require_lock_keys(lock, ['phase0_locked', 'phase1a_locked', 'phase1b_locked'], 'phase2 lock validation')
+    if lock['phase1a_locked'].get('pipeline') != 'one-stage':
+        raise RuntimeError('phase2 lock validation: pipeline lock mismatch, expected one-stage')
+    finalists = lock['phase1b_locked'].get('architecture_finalists') or []
+    if not finalists:
+        raise RuntimeError('phase2 lock validation: architecture_finalists empty')
+
+
+def validate_phase3_lock(lock: dict[str, Any]) -> None:
+    validate_phase2_lock(lock)
+    require_lock_keys(lock, ['final_model', 'final_config'], 'phase3 lock validation')
+    finalists = lock['phase1b_locked'].get('architecture_finalists') or []
+    if lock['final_model'] not in finalists:
+        raise RuntimeError('phase3 lock validation: final_model is not part of locked phase1 finalists')
+    cfg = lock['final_config']
+    for key in ['model', 'lr0', 'batch', 'imbalance_strategy', 'ordinal_strategy', 'aug_profile', 'imgsz']:
+        if key not in cfg:
+            raise RuntimeError(f'phase3 lock validation: final_config missing key {key}')
+    if cfg['model'] != lock['final_model']:
+        raise RuntimeError('phase3 lock validation: final_config.model mismatch with final_model lock')
+    if int(cfg['imgsz']) != 640:
+        raise RuntimeError('phase3 lock validation: imgsz changed after lock')
+
+
 def update_guide_status(lines: list[str]) -> None:
     text = GUIDE.read_text(encoding='utf-8')
     if GUIDE_STATUS_START not in text or GUIDE_STATUS_END not in text:
@@ -719,6 +750,7 @@ def phase1b() -> dict[str, Any]:
         'phase0_locked': {'imgsz': 640, 'split': 'tree-grouped class-stratified'},
         'phase1a_locked': {'pipeline': 'one-stage'},
         'phase1b_locked': {
+            'lock_stage': 'phase1b_finalists_locked',
             'architecture_finalists': finalists,
             'baseline': {
                 'lr0': 0.001,
@@ -801,6 +833,7 @@ def aggregate_phase2_option(model: str, phase_prefix: str, token: str, seeds: li
 def phase2() -> dict[str, Any]:
     log('phase2 start')
     lock = read_lock()
+    validate_phase2_lock(lock)
     finalists: list[str] = lock['phase1b_locked']['architecture_finalists']
     baseline = lock['phase1b_locked']['baseline']
     imbalance_rows: list[dict[str, Any]] = []
@@ -977,6 +1010,10 @@ def phase2() -> dict[str, Any]:
     (ROOT / 'outputs/phase2/phase2_summary.md').write_text('\n'.join(phase2_lines) + '\n', encoding='utf-8')
 
     lock = read_lock()
+    validate_phase2_lock(lock)
+    if best_final['model'] not in lock['phase1b_locked']['architecture_finalists']:
+        raise RuntimeError('phase2 final selection is outside locked finalists')
+    lock['phase1b_locked']['lock_stage'] = 'phase2_final_model_locked'
     lock['final_model'] = best_final['model']
     lock['final_config'] = final_hparams
     write_lock(lock)
@@ -1062,6 +1099,7 @@ def write_root_readme_and_checkpoint() -> None:
 def phase3() -> None:
     log('phase3 start')
     lock = read_lock()
+    validate_phase3_lock(lock)
     final_model = lock['final_model']
     final_cfg = lock['final_config']
     data_yaml = create_phase3_data_yaml()

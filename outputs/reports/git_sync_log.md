@@ -14,3 +14,4 @@
 - 2026-03-26T23:28:32Z | commit 6b6f294 | phase1: add p1bfc_yolov8n_640_s2_e30p10m30
 - 2026-03-26T23:39:57Z | commit 12a39de | phase1: add p1bfc_yolov8s_640_s1_e30p10m30
 - 2026-03-26T23:51:22Z | commit 08c729e | phase1: add p1bfc_yolov8s_640_s2_e30p10m30
+- 2026-03-27T00:06:56Z | commit 651f21a | enforce locked setup for phase2 and phase3
