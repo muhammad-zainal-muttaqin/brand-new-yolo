@@ -27,3 +27,4 @@
 - 2026-03-27T02:59:39Z | commit e8f2d0f | lock phase2 to single best phase1 model
 - 2026-03-27T03:24:50Z | commit f99c0bc | phase1: add p1bfc_yolo26n_640_s1_e30p10m30
 - 2026-03-27T03:36:49Z | commit bad46a8 | phase1: add p1bfc_yolo26n_640_s2_e30p10m30
+- 2026-03-27T03:51:17Z | commit c6b8334 | phase1: add p1bfc_yolo26s_640_s1_e30p10m30
