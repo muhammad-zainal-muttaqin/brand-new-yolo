@@ -18,3 +18,4 @@
 - 2026-03-27T00:09:40Z | commit 7f1a181 | phase1: add p1bfc_yolov8m_640_s1_e30p10m30
 - 2026-03-27T00:28:03Z | commit 3282ac2 | phase1: add p1bfc_yolov8m_640_s2_e30p10m30
 - 2026-03-27T00:55:29Z | commit 68e5b46 | phase1: add p1bfc_yolov9c_640_s1_e30p10m30
+- 2026-03-27T01:22:59Z | commit 9c9f709 | phase1: add p1bfc_yolov9c_640_s2_e30p10m30
