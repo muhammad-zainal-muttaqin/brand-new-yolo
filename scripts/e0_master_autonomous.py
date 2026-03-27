@@ -528,8 +528,11 @@ def run_experiment(spec: RunSpec) -> dict[str, Any]:
         log(f'skip completed run: {spec.name}')
     else:
         wait_for_external_activity()
-        sh(build_command(spec))
-        checkpoint(f'{spec.phase}: add {spec.name}')
+        if run_done(spec.name) and summary_path(spec.phase, spec.name).exists():
+            log(f'skip completed run after wait: {spec.name}')
+        else:
+            sh(build_command(spec))
+            checkpoint(f'{spec.phase}: add {spec.name}')
     summary = read_json(summary_path(spec.phase, spec.name))
     materialize_eval_snapshot(spec.phase, spec.name, summary['best_weight'], spec.data, spec.split, spec.imgsz, spec.batch, spec.device)
     return summary

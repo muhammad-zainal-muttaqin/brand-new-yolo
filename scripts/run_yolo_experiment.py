@@ -141,12 +141,16 @@ def ensure_parent(path: Path) -> None:
 
 def append_ledger(row: dict, ledger_path: Path) -> None:
     ensure_parent(ledger_path)
-    exists = ledger_path.exists()
-    with ledger_path.open('a', newline='', encoding='utf-8') as f:
+    rows: list[dict] = []
+    if ledger_path.exists():
+        with ledger_path.open(newline='', encoding='utf-8') as f:
+            rows = list(csv.DictReader(f))
+    rows = [r for r in rows if not (r.get('phase') == str(row.get('phase')) and r.get('run_name') == str(row.get('run_name')))]
+    rows.append({k: row.get(k, '') for k in LEDGER_COLUMNS})
+    with ledger_path.open('w', newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=LEDGER_COLUMNS)
-        if not exists:
-            writer.writeheader()
-        writer.writerow({k: row.get(k, '') for k in LEDGER_COLUMNS})
+        writer.writeheader()
+        writer.writerows(rows)
 
 
 def write_latest_status(row: dict, save_dir: Path, status_path: Path) -> None:
@@ -172,6 +176,12 @@ def write_latest_status(row: dict, save_dir: Path, status_path: Path) -> None:
         f"- mAP50: `{row['map50']}`",
         f"- mAP50-95: `{row['map50_95']}`",
     ]
+    if row.get('top1_acc') is not None:
+        lines.append(f"- Top1 acc: `{row['top1_acc']}`")
+    if row.get('top5_acc') is not None:
+        lines.append(f"- Top5 acc: `{row['top5_acc']}`")
+    if row.get('metric_schema_note'):
+        lines.append(f"- Metric note: `{row['metric_schema_note']}`")
     status_path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
 
 
@@ -392,11 +402,17 @@ def main() -> None:
         val_kwargs['conf'] = args.conf
     metrics = best_model.val(**val_kwargs)
 
+    top1_acc = None
+    top5_acc = None
+    metric_schema_note = None
     if args.task == 'classify':
-        precision = float(getattr(metrics, 'top1', 0.0))
-        recall = float(getattr(metrics, 'top5', 0.0))
-        map50 = precision
-        map50_95 = recall
+        top1_acc = float(getattr(metrics, 'top1', 0.0))
+        top5_acc = float(getattr(metrics, 'top5', 0.0))
+        precision = top1_acc
+        recall = top5_acc
+        map50 = top1_acc
+        map50_95 = top5_acc
+        metric_schema_note = 'classification task: precision/top1 and recall/top5 are aliases for compatibility; mAP fields are not detection mAP'
     else:
         precision = float(getattr(metrics.box, 'mp', 0.0))
         recall = float(getattr(metrics.box, 'mr', 0.0))
@@ -421,6 +437,9 @@ def main() -> None:
         'recall': recall,
         'map50': map50,
         'map50_95': map50_95,
+        'top1_acc': top1_acc,
+        'top5_acc': top5_acc,
+        'metric_schema_note': metric_schema_note,
         'status': 'completed',
         'fraction': args.fraction,
         'single_cls': args.single_cls,
