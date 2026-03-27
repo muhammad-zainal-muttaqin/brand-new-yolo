@@ -1,15 +1,5 @@
 # Phase 2 Summary
 
-## Navigasi mini
-
-- Ringkasan repo: [README.md](../../README.md)
-- Keputusan model terkunci: [outputs/phase1/locked_setup.yaml](../phase1/locked_setup.yaml)
-- Benchmark Phase 1B: [outputs/phase1/architecture_benchmark.csv](../phase1/architecture_benchmark.csv)
-- Hasil agregasi tuning: [outputs/phase2/tuning_results.csv](tuning_results.csv)
-- Hyperparameter final: [outputs/phase2/final_hparams.yaml](final_hparams.yaml)
-- Confirm run Phase 2: [outputs/phase2/p2confirm_yolo11m_640_s3_e30p10m30_eval.json](p2confirm_yolo11m_640_s3_e30p10m30_eval.json)
-- Lanjut ke final report: [outputs/phase3/final_report.md](../phase3/final_report.md)
-
 ## Operational override aktif
 
 - `Observed plateau/identical curves on Phase 2 Step 0a loss variants; repo override keeps baseline loss setup, reuses Phase 1B baseline for lr0=0.001, and continues with a reduced sweep over LR, batch, and augmentation.`
