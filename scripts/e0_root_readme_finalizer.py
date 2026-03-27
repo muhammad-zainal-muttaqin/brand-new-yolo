@@ -48,7 +48,7 @@ def wait_until_ready() -> None:
 
 def commit_and_push() -> None:
     sh([sys.executable, 'scripts/write_root_readme.py'])
-    sh(['git', 'add', 'README.md', 'outputs/reports/root_readme_finalizer.log'])
+    sh(['git', 'add', '--ignore-removal', 'README.md', 'outputs/reports/root_readme_finalizer.log'])
     diff = subprocess.run(['git', 'diff', '--cached', '--quiet'], cwd=ROOT)
     if diff.returncode == 0:
         log('README already up to date; nothing to commit')

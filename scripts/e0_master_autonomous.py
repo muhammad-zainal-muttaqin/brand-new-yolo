@@ -192,12 +192,13 @@ def eval_path(phase: str, run_name: str) -> Path:
 
 
 def read_json(path: Path) -> dict[str, Any]:
+    path = restore_tracked_file(path)
     return json.loads(path.read_text(encoding='utf-8'))
 
 
 def checkpoint(message: str) -> bool:
     cleanup_downloaded_root_weights()
-    sh(['git', 'add', 'GUIDE.md', 'E0.md', 'CONTEXT.md', 'outputs', 'runs', 'scripts'])
+    sh(['git', 'add', '--ignore-removal', 'GUIDE.md', 'E0.md', 'CONTEXT.md', 'outputs', 'runs', 'scripts'])
     diff = subprocess.run(['git', 'diff', '--cached', '--quiet'], cwd=ROOT)
     if diff.returncode == 0:
         log(f'no changes to commit for checkpoint: {message}')
@@ -271,6 +272,15 @@ def image_to_label_path(image_path: Path) -> Path:
         parts[idx] = 'labels'
         return Path(*parts).with_suffix('.txt')
     return Path(str(image_path).replace('/images/', '/labels/')).with_suffix('.txt')
+
+
+def restore_tracked_file(path: str | Path) -> Path:
+    p = Path(path)
+    if p.exists():
+        return p
+    rel = p.resolve().relative_to(ROOT.resolve())
+    sh(['git', 'checkout', 'HEAD', '--', str(rel)])
+    return p
 
 
 def load_gt_boxes(image_path: Path) -> tuple[list[dict[str, Any]], tuple[int, int]]:
@@ -382,6 +392,7 @@ def build_error_stratification(
     out_csv: Path,
     extra_fields: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
+    best_weight = str(restore_tracked_file(best_weight))
     model = YOLO(best_weight)
     names = {int(k): v for k, v in model.names.items()} if isinstance(model.names, dict) else dict(enumerate(model.names))
     rows: list[dict[str, Any]] = []
@@ -445,6 +456,7 @@ def materialize_eval_snapshot(phase: str, run_name: str, best_weight: str, data:
     out = eval_path(phase, run_name)
     if out.exists():
         return read_json(out)
+    best_weight = str(restore_tracked_file(best_weight))
     model = YOLO(best_weight)
     metrics = model.val(data=data, split=split, imgsz=imgsz, batch=batch, device=device, workers=8, plots=False)
     names = {int(k): v for k, v in metrics.names.items()}
