@@ -1,0 +1,2 @@
+model,option,ordinal_strategy,status,note
+yolo11m.pt,skipped_after_step0a_plateau,standard,skipped,"Observed plateau/identical curves on Phase 2 Step 0a loss variants; repo override keeps baseline loss setup, reuses Phase 1B baseline for lr0=0.001, and continues with a reduced sweep over LR, batch, and augmentation."

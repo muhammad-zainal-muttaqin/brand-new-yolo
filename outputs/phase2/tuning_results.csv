@@ -1,0 +1,2 @@
+model,final_source,reverted_to_phase1_baseline,baseline_mean_map50,tuned_mean_map50,mean_map50,mean_map50_95,lr0,batch,imbalance_strategy,ordinal_strategy,aug_profile,confirmation_run
+yolo11m.pt,phase1_baseline_reverted,True,0.5298152306606998,0.5349757729275093,0.5328845369112106,0.2578360029690024,0.001,16,none,standard,medium,p2confirm_yolo11m_640_s3_e30p10m30

@@ -19,7 +19,7 @@ phase0_locked:
 phase1a_locked:
   pipeline: one-stage
 phase1b_locked:
-  lock_stage: phase1b_single_best_locked
+  lock_stage: phase2_final_model_locked
   architecture_finalists:
   - yolo11m.pt
   selected_model: yolo11m.pt
@@ -33,5 +33,15 @@ phase1b_locked:
     aug_profile: medium
   phase1b_gate_map50_pass: false
   phase1b_gate_override_continue: true
-final_model: null
-final_config: null
+final_model: yolo11m.pt
+final_config:
+  model: yolo11m.pt
+  lr0: 0.001
+  batch: 16
+  imbalance_strategy: none
+  ordinal_strategy: standard
+  aug_profile: medium
+  patience: 10
+  epochs: 30
+  min_epochs: 30
+  imgsz: 640
