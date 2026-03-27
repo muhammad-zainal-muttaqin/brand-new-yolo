@@ -17,28 +17,53 @@ size_categories:
   - 1K<n<10K
 ---
 
-# Dataset Deteksi Tandan Buah Segar (TBS) Kelapa Sawit - YOLO Format
+# Dataset Deteksi Tandan Buah Segar (TBS) Sawit — Format YOLO
 
-Dataset citra lapangan pohon kelapa sawit dari dua varietas di Indonesia: **Damimas** (Blok A21B) dan **Lonsum** (Blok A21A). Dataset ini menggunakan format YOLO untuk deteksi objek dengan 4 kelas tingkat kematangan buah: `B1`, `B2`, `B3`, dan `B4`.
+Dataset ini berisi citra lapangan tandan buah segar kelapa sawit dari dua domain di Indonesia: **Damimas** (Blok A21B) dan **Lonsum** (Blok A21A). Format anotasinya mengikuti format YOLO untuk deteksi objek dengan 4 kelas kematangan: `B1`, `B2`, `B3`, dan `B4`.
 
-Split yang dipublikasikan di sini mengikuti **split kanonik lokal** yang dipakai pada workflow `autoresearch` untuk YOLO.
+Split yang dipublikasikan di sini mengikuti **split kanonik lokal** yang dipakai pada workflow `autoresearch` dan eksperimen repo ini.
 
-## Ringkasan Dataset
+## Ringkasan dataset
 
-| Split | Jumlah Gambar | Persentase |
+| Split | Jumlah gambar | Persentase |
 |---|---:|---:|
 | Train | 2,764 | 69.2% |
 | Validation | 604 | 15.1% |
 | Test | 624 | 15.6% |
 | **Total** | **3,992** | **100%** |
 
-- Total gambar: 3,992 JPG
-- Total label: 3,992 TXT (format YOLO)
-- Total pohon/sekuens: 953
-- Varietas: 2 (Damimas, Lonsum)
-- Kelas: 4 (`B1`, `B2`, `B3`, `B4`)
+Ringkasan cepat:
 
-## Struktur Folder
+- total gambar: **3,992** JPG
+- total label: **3,992** TXT
+- total pohon/sekuens: **953**
+- domain/varietas: **2** (`Damimas`, `Lonsum`)
+- jumlah kelas: **4** (`B1`, `B2`, `B3`, `B4`)
+
+## Arti kelas yang dipakai di repo ini
+
+Repo ini memakai mapping berikut secara konsisten:
+
+- `B1`: buah paling matang
+- `B2`: transisi setelah `B1`
+- `B3`: lebih mentah dari `B2`
+- `B4`: paling belum matang
+
+Panduan visual singkat:
+
+- `B1`: merah, besar, bulat, paling bawah pada tandan
+- `B2`: hitam mulai merah, besar, bulat, di atas `B1`
+- `B3`: full hitam, berduri, lonjong, di atas `B2`
+- `B4`: paling kecil, paling dalam di tandan, sulit terlihat, hitam sampai hijau
+
+Untuk pembaca repo ini, mapping yang sama juga muncul di:
+
+- [../README.md](../README.md)
+- [../E0.md](../E0.md)
+- [../GUIDE.md](../GUIDE.md)
+- [../CONTEXT.md](../CONTEXT.md)
+
+## Struktur folder
 
 ```text
 Dataset-YOLO/
@@ -55,9 +80,9 @@ Dataset-YOLO/
 `-- README.md
 ```
 
-Semua gambar memiliki file label pasangan dengan nama stem yang sama.
+Setiap gambar memiliki file label pasangan dengan stem yang sama.
 
-## Konfigurasi data.yaml
+## Isi `data.yaml`
 
 ```yaml
 path: .
@@ -73,7 +98,7 @@ names:
   3: B4
 ```
 
-## Format Label YOLO
+## Format label YOLO
 
 Setiap file `.txt` berisi satu baris per bounding box:
 
@@ -89,12 +114,13 @@ Contoh:
 ```
 
 Keterangan kelas:
+
 - `0 = B1`
 - `1 = B2`
 - `2 = B3`
 - `3 = B4`
 
-## Konvensi Penamaan File
+## Konvensi penamaan file
 
 Format nama file:
 
@@ -109,9 +135,9 @@ DAMIMAS_A21B_0001_1.jpg
 DAMIMAS_A21B_0001_1.txt
 ```
 
-Satu pohon difoto dari beberapa sisi, dan seluruh sisi dari pohon yang sama berada pada split yang sama.
+Satu pohon difoto dari beberapa sisi. Semua sisi dari pohon yang sama ditempatkan pada split yang sama agar kebocoran antar split bisa dihindari.
 
-## Penggunaan
+## Cara pakai
 
 ### Ultralytics YOLO
 
@@ -134,11 +160,19 @@ val_ds = dataset["validation"]
 test_ds = dataset["test"]
 ```
 
-## Catatan
+## Catatan penting
 
-- Split train/val/test pada repo ini bersifat fixed.
-- Split ini diselaraskan dengan dataset lokal kanonik yang dipakai pada workflow autoresearch YOLO.
-- Jika Anda ingin eksperimen dengan split lain, lakukan resplit di salinan dataset terpisah.
+- split train/val/test pada repo ini **fixed**
+- split ini diselaraskan dengan dataset lokal kanonik yang dipakai pada workflow autoresearch YOLO
+- jika Anda ingin eksperimen dengan split lain, buat salinan dataset terpisah agar benchmark repo tetap bersih
+
+## Dokumen repo yang relevan
+
+- Peta baca repo: [../README.md](../README.md)
+- Protokol E0: [../E0.md](../E0.md)
+- Runbook operasional: [../GUIDE.md](../GUIDE.md)
+- Audit dataset repo ini: [../outputs/phase0/eda_report.md](../outputs/phase0/eda_report.md)
+- Ringkasan keputusan Phase 0: [../outputs/phase0/phase0_summary.md](../outputs/phase0/phase0_summary.md)
 
 ## Lisensi
 

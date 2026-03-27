@@ -1,35 +1,24 @@
 # Evaluasi Final — Phase 3 Test Set
 
-Dokumen ini adalah evaluasi teknis untuk run final `p3_final_yolo11m_640_s42_e60p15m60`. Jika Anda ingin ringkasan lintas fase terlebih dahulu, baca [README.md](../../README.md). Jika Anda ingin narasi keputusan end-to-end, baca [outputs/phase3/final_report.md](final_report.md).
+Dokumen ini jelasin evaluasi teknis run final `p3_final_yolo11m_640_s42_e60p15m60`. Narasi keputusan lintas fase ada di [final_report.md](final_report.md), peta baca repo di [README.md](../../README.md).
 
-## Navigasi mini
+## Sumber utama
 
-- Ringkasan repo: [README.md](../../README.md)
-- Snapshot reproducibility & termination: [outputs/reports/reproducibility_and_termination.md](../reports/reproducibility_and_termination.md)
-- Final report lintas fase: [outputs/phase3/final_report.md](final_report.md)
-- Eval JSON resmi: [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json](p3_final_yolo11m_640_s42_e60p15m60_eval.json)
-- Metadata run final: [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_summary.json](p3_final_yolo11m_640_s42_e60p15m60_summary.json)
-- Threshold sweep: [outputs/phase3/threshold_sweep.csv](threshold_sweep.csv)
-- Error analysis: [outputs/phase3/error_analysis.md](error_analysis.md)
-- Deploy check: [outputs/phase3/deploy_check.md](deploy_check.md)
-- Weight final: [runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/best.pt](../../runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/best.pt)
+File yang dirujuk langsung:
 
-## 1. File sumber evaluasi yang dipakai
+- [p3_final_yolo11m_640_s42_e60p15m60_eval.json](p3_final_yolo11m_640_s42_e60p15m60_eval.json)
+- [p3_final_yolo11m_640_s42_e60p15m60_summary.json](p3_final_yolo11m_640_s42_e60p15m60_summary.json)
+- [final_metrics.csv](final_metrics.csv)
+- [threshold_sweep.csv](threshold_sweep.csv)
+- [error_analysis.md](error_analysis.md)
+- [error_stratification.csv](error_stratification.csv)
+- [deploy_check.md](deploy_check.md)
 
-Evaluasi pada dokumen ini dibaca langsung dari file-file berikut:
+Kalau butuh angka resmi, prioritaskan **eval JSON** dan **summary JSON** di atas.
 
-- [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json](p3_final_yolo11m_640_s42_e60p15m60_eval.json) sebagai sumber utama metrik test-set resmi
-- [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_summary.json](p3_final_yolo11m_640_s42_e60p15m60_summary.json) sebagai sumber metadata run, path weight, dan konfigurasi eksekusi
-- [outputs/phase3/final_metrics.csv](final_metrics.csv) sebagai ringkasan cepat tambahan
-- [outputs/phase3/threshold_sweep.csv](threshold_sweep.csv) sebagai analisis threshold operasi
-- [outputs/phase3/error_analysis.md](error_analysis.md) dan [outputs/phase3/error_stratification.csv](error_stratification.csv) sebagai analisis error
-- [outputs/phase3/deploy_check.md](deploy_check.md) sebagai status deploy/TFLite/INT8
+## 1. Identitas run yang dievaluasi
 
-Ketika pembaca membutuhkan **angka resmi evaluasi final**, prioritaskan [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json](p3_final_yolo11m_640_s42_e60p15m60_eval.json) dan [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_summary.json](p3_final_yolo11m_640_s42_e60p15m60_summary.json), karena kedua file itu melekat langsung ke run final.
-
-## 2. Identitas run yang dievaluasi
-
-Metadata run final dapat dibaca langsung di [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_summary.json](p3_final_yolo11m_640_s42_e60p15m60_summary.json):
+Metadata run final berasal dari [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_summary.json](p3_final_yolo11m_640_s42_e60p15m60_summary.json):
 
 | Item | Nilai |
 |---|---|
@@ -49,11 +38,10 @@ Metadata run final dapat dibaca langsung di [outputs/phase3/p3_final_yolo11m_640
 | Ordinal strategy | `standard` |
 | Data file | [outputs/phase3/final_data.yaml](final_data.yaml) |
 | Best weight | [runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/best.pt](../../runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/best.pt) |
-| Last weight | [runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/last.pt](../../runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/last.pt) |
 
-## 3. Metrik resmi test-set
+## 2. Metrik resmi test set
 
-Angka pada tabel berikut diambil dari [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json](p3_final_yolo11m_640_s42_e60p15m60_eval.json):
+Angka berikut diambil langsung dari [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json](p3_final_yolo11m_640_s42_e60p15m60_eval.json):
 
 | Metrik | Nilai |
 |---|---:|
@@ -64,15 +52,15 @@ Angka pada tabel berikut diambil dari [outputs/phase3/p3_final_yolo11m_640_s42_e
 | B4 recall | 0.3798 |
 | All classes `AP50 >= 0.70` | False |
 
-Interpretasi langsung dari [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json](p3_final_yolo11m_640_s42_e60p15m60_eval.json):
+Interpretasi langsung:
 
-- model final **sudah usable sebagai baseline eksperimen akhir**, tetapi belum kuat secara merata pada semua kelas
-- kelas `B1` jauh lebih mudah dikenali daripada `B2` dan `B4`
-- target gate keras `all classes >= 70% AP50` **belum tercapai**
+- model final ini **cukup layak sebagai baseline akhir repo**
+- tetapi kualitasnya belum merata di semua kelas
+- target keras `all classes >= 70% AP50` **belum tercapai**
 
-## 4. Metrik per kelas
+## 3. Metrik per kelas
 
-Tabel berikut juga berasal langsung dari [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json](p3_final_yolo11m_640_s42_e60p15m60_eval.json):
+Tabel ini juga berasal dari eval JSON final:
 
 | Kelas | Precision | Recall | mAP50 | mAP50-95 |
 |---|---:|---:|---:|---:|
@@ -81,58 +69,70 @@ Tabel berikut juga berasal langsung dari [outputs/phase3/p3_final_yolo11m_640_s4
 | `B3` | 0.4603 | 0.6910 | 0.4880 | 0.2138 |
 | `B4` | 0.3280 | 0.3798 | 0.2742 | 0.0993 |
 
-Pembacaan singkat terhadap tabel per kelas di [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json](p3_final_yolo11m_640_s42_e60p15m60_eval.json):
+Pembacaan singkat:
 
-- `B1` adalah kelas paling stabil dan paling mudah dikenali
-- `B3` sudah cukup terdeteksi, tetapi presisinya masih sedang
-- `B2` masih tertahan oleh confusion dengan kelas tetangga tingkat kematangan
-- `B4` tetap menjadi kelas paling sulit, baik dari sisi ukuran, visibilitas, maupun recall
+- `B1` jelas paling stabil
+- `B3` sudah cukup baik pada recall, tetapi presisinya belum tinggi
+- `B2` masih tertahan confusion kelas tetangga
+- `B4` tetap paling sulit, baik dari sisi ukuran maupun recall
 
-## 5. Threshold operasi
+## 4. Threshold operasi
 
-Threshold operasi tidak diambil dari tebakan manual, tetapi dari [outputs/phase3/threshold_sweep.csv](threshold_sweep.csv). File itu menunjukkan kandidat threshold terbaik pada artefak ini berada di `conf=0.1`.
+Threshold operasi tidak dipilih secara manual. Kita memakai [outputs/phase3/threshold_sweep.csv](threshold_sweep.csv).
 
-Ringkasan kandidat `conf=0.1` dari [outputs/phase3/threshold_sweep.csv](threshold_sweep.csv):
+Kandidat threshold terbaik pada artefak ini berada di **`conf=0.1`**.
+
+Ringkasan kandidat `conf=0.1`:
 
 | conf | precision | recall | map50 | map50-95 | b4_recall |
 |---:|---:|---:|---:|---:|---:|
 | 0.1 | 0.7032 | 0.6995 | 0.7395 | 0.4499 | 0.5415 |
 
-Catatan penting: angka pada [outputs/phase3/threshold_sweep.csv](threshold_sweep.csv) dipakai untuk **membandingkan operating point antar-threshold**, sedangkan angka resmi skor model final tetap harus dibaca dari [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json](p3_final_yolo11m_640_s42_e60p15m60_eval.json).
+Catatan penting: angka threshold sweep dipakai untuk memilih **operating point**, bukan untuk mengganti skor resmi run final di eval JSON.
 
-## 6. Error dominan yang perlu diperhatikan
+## 5. Error dominan
 
-Ringkasan error praktis dapat dibaca di [outputs/phase3/error_analysis.md](error_analysis.md). Dokumen itu menunjukkan pola error dominan berikut:
+Error praktis dirangkum di [outputs/phase3/error_analysis.md](error_analysis.md). Berdasarkan [outputs/phase3/error_stratification.csv](error_stratification.csv), pola error dominan adalah:
 
-- `false_positive`: `20` image
-- `B2_B3_confusion`: `13` image
-- `B4_missed`: `11` image
-- `B3_B4_confusion`: `10` image
+- `false_positive`: **20** image
+- `B2_B3_confusion`: **13** image
+- `B4_missed`: **11** image
+- `B3_B4_confusion`: **10** image
 
-Daftar contoh image tersulit dapat dilihat langsung di [outputs/phase3/error_stratification.csv](error_stratification.csv). Contoh baris teratas di file itu menunjukkan bahwa image seperti `/workspace/Dataset-Sawit-YOLO/images/test/DAMIMAS_A21B_0838_5.jpg`, `/workspace/Dataset-Sawit-YOLO/images/test/DAMIMAS_A21B_0075_2.jpg`, dan `/workspace/Dataset-Sawit-YOLO/images/test/DAMIMAS_A21B_0292_2.jpg` termasuk kasus yang paling berat untuk run final ini.
+Daftar gambar tersulit bisa dicek langsung di [outputs/phase3/error_stratification.csv](error_stratification.csv). Beberapa contoh awalnya adalah:
 
-File [outputs/phase3/confusion_matrix.csv](confusion_matrix.csv) tetap tersedia sebagai artefak ekspor, tetapi untuk pembacaan run ini file tersebut tidak lebih informatif daripada [outputs/phase3/error_analysis.md](error_analysis.md) dan [outputs/phase3/error_stratification.csv](error_stratification.csv).
+- `/workspace/Dataset-Sawit-YOLO/images/test/DAMIMAS_A21B_0838_5.jpg`
+- `/workspace/Dataset-Sawit-YOLO/images/test/DAMIMAS_A21B_0075_2.jpg`
+- `/workspace/Dataset-Sawit-YOLO/images/test/DAMIMAS_A21B_0292_2.jpg`
 
-## 7. Hubungan evaluasi final dengan keputusan Phase 2
+## 6. Hubungan hasil final dengan Phase 2
 
-Recipe yang dievaluasi pada Phase 3 ini tetap mengikuti hasil lock yang dapat dibaca pada [outputs/phase1/locked_setup.yaml](../phase1/locked_setup.yaml) dan [outputs/phase2/final_hparams.yaml](../phase2/final_hparams.yaml). Validasi stabilitas sebelum masuk Phase 3 dapat dilihat di [outputs/phase2/p2confirm_yolo11m_640_s3_e30p10m30_eval.json](../phase2/p2confirm_yolo11m_640_s3_e30p10m30_eval.json).
+Run final ini **bukan model baru di luar lock file**. Ini adalah evaluasi terakhir dari setup yang sudah dipilih sebelumnya.
 
-Dengan kata lain, evaluasi final ini **bukan** hasil eksperimen model baru; evaluasi ini adalah pembuktian terakhir untuk setup yang sudah dipilih dan di-lock sebelumnya.
+Bukti keterkaitannya ada di:
 
-## 8. Status deploy dan artefak keluaran utama
+- [outputs/phase1/locked_setup.yaml](../phase1/locked_setup.yaml)
+- [outputs/phase2/final_hparams.yaml](../phase2/final_hparams.yaml)
+- [outputs/phase2/p2confirm_yolo11m_640_s3_e30p10m30_eval.json](../phase2/p2confirm_yolo11m_640_s3_e30p10m30_eval.json)
 
-Status deploy saat ini tetap **deferred** sesuai [outputs/phase3/deploy_check.md](deploy_check.md). Jadi keluaran utama yang benar-benar siap dipakai dari sesi ini adalah:
+## 7. Status deploy
 
-- laporan akhir lintas fase di [outputs/phase3/final_report.md](final_report.md)
-- evaluasi final teknis di [outputs/phase3/final_evaluation.md](final_evaluation.md)
-- weight final di [runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/best.pt](../../runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/best.pt)
-- recipe final di [outputs/phase2/final_hparams.yaml](../phase2/final_hparams.yaml)
+Status deploy saat ini tetap **deferred**, sesuai [outputs/phase3/deploy_check.md](deploy_check.md).
 
-## 9. Kesimpulan evaluasi
+Artinya, keluaran utama yang siap dipakai dari sesi ini adalah:
 
-Evaluasi final pada [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json](p3_final_yolo11m_640_s42_e60p15m60_eval.json) menunjukkan bahwa eksperimen E0 berhasil menghasilkan **satu setup final yang konsisten dan terdokumentasi**, tetapi kualitas model belum merata di semua kelas. Jalur perbaikan yang paling jelas setelah membaca [outputs/phase3/error_analysis.md](error_analysis.md) dan [outputs/phase3/error_stratification.csv](error_stratification.csv) adalah:
+- [outputs/phase3/final_report.md](final_report.md)
+- [outputs/phase3/final_evaluation.md](final_evaluation.md)
+- [runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/best.pt](../../runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/best.pt)
+- [outputs/phase2/final_hparams.yaml](../phase2/final_hparams.yaml)
+
+## 8. Kesimpulan evaluasi
+
+Evaluasi final ini menunjukkan bahwa repo berhasil menghasilkan **satu setup final yang konsisten dan bisa dilacak**, tetapi model masih belum kuat di semua kelas.
+
+Jalur perbaikan yang paling jelas setelah membaca hasil final ini adalah:
 
 1. mengurangi confusion `B2/B3`
 2. meningkatkan recall `B4`
 3. menekan `false_positive`
-4. baru setelah itu melanjutkan ke export deploy yang tervalidasi ulang
+4. baru setelah itu melanjutkan ke deploy yang tervalidasi ulang

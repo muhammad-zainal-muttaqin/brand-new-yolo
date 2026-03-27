@@ -31,7 +31,7 @@ Aturan baca:
 
 - **jangan** bandingkan `train+test` dengan fair benchmark
 - **jangan** bandingkan binary task atau single-class detector dengan task final 4 kelas
-- jika ada konflik dokumentasi, cek dulu sumber yang diprioritaskan di [CONTEXT.md](CONTEXT.md)
+- kalau ada konflik dokumentasi, cek dulu sumber yang diprioritaskan di [CONTEXT.md](CONTEXT.md)
 
 ## 3. Fakta dataset penting
 
@@ -249,7 +249,7 @@ Hentikan branch baru kalau:
 - slice metric utama tidak berubah (`B2/B3`, `B4`, per-source)
 - branch itu hanya mengulang branch lama dengan knob yang sedikit berbeda
 
-Lanjutkan hanya kalau branch itu:
+Lanjutkan hanya jika branch itu:
 
 - menguji hipotesis struktural baru
 - atau memberi bukti baru tentang ceiling task

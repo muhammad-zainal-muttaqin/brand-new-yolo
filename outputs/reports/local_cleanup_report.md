@@ -1,111 +1,73 @@
+# Local Cleanup Report
 
-## 2026-03-27T02:03:28Z
-- active_run_preserved: p1bfc_yolov10s_640_s2_e30p10m30
-- removed_count: 35
-- freed_bytes_estimate: 968223126
-  - runs/detect/runs/e0/p0_yolo11n_640_s1_e3 | 10914483 bytes
-  - runs/detect/runs/e0/p0_yolo11n_1024_s1_e3 | 11037751 bytes
-  - runs/detect/runs/e0/p0_yolo11n_640_s2_e3 | 10914481 bytes
-  - runs/detect/runs/e0/p0_yolo11n_1024_s2_e3 | 11037749 bytes
-  - runs/detect/runs/e0/p0_yolo11n_640_s1_e30 | 10924261 bytes
-  - runs/detect/runs/e0/p0_yolo11n_1024_s1_e30 | 11047154 bytes
-  - runs/detect/runs/e0/p0_yolo11n_640_s1_e30p10m30 | 10924644 bytes
-  - runs/detect/runs/e0/p0_yolo11n_1024_s1_e30p10m30 | 11047909 bytes
-  - runs/detect/runs/e0/p0_yolo11n_640_s2_e30p10m30 | 10924626 bytes
-  - runs/detect/runs/e0/p0_yolo11n_1024_s2_e30p10m30 | 11047915 bytes
-  - runs/detect/runs/e0/p0_lc25_yolo11n_640_s1_e30p10m30 | 10924789 bytes
-  - runs/detect/runs/e0/p0_lc50_yolo11n_640_s1_e30p10m30 | 10924773 bytes
-  - runs/detect/runs/e0/p0_lc75_yolo11n_640_s1_e30p10m30 | 10924789 bytes
-  - runs/detect/runs/e0/p0_lc100_yolo11n_640_s1_e30p10m30 | 10924785 bytes
-  - runs/detect/runs/e0/p1a_stage1_singlecls_yolo11n_640_s1_e30p10m30 | 10922268 bytes
-  - runs/detect/runs/e0/p1a_stage1_singlecls_yolo11n_640_s2_e30p10m30 | 10922261 bytes
-  - runs/classify/runs/e0/p1a_stage2_cls_yolo11ncls_gtcrop_s1_e30p10m30 | 6389703 bytes
-  - runs/classify/runs/e0/p1a_stage2_cls_yolo11ncls_gtcrop_s2_e30p10m30 | 6389696 bytes
-  - runs/detect/runs/e0/p1b_yolov8n_640_s1_e30p10m30 | 12478088 bytes
-  - runs/detect/runs/e0/p1b_yolov8s_640_s1_e30p10m30 | 45018375 bytes
-  - runs/detect/runs/e0/p1b_yolov8m_640_s1_e30p10m30 | 104045149 bytes
-  - runs/detect/runs/e0/p1b_yolo11n_640_s1_e30p10m30 | 10924648 bytes
-  - runs/detect/runs/e0/p1bfc_yolov8n_640_s1_e30p10m30 | 12477985 bytes
-  - runs/detect/runs/e0/p1bfc_yolov8n_640_s2_e30p10m30 | 12477986 bytes
-  - runs/detect/runs/e0/p1bfc_yolov8s_640_s1_e30p10m30 | 45018275 bytes
-  - runs/detect/runs/e0/p1bfc_yolov8s_640_s2_e30p10m30 | 45018272 bytes
-  - runs/detect/runs/e0/p1bfc_yolov8m_640_s1_e30p10m30 | 104045042 bytes
-  - runs/detect/runs/e0/p1bfc_yolov8m_640_s2_e30p10m30 | 104045045 bytes
-  - runs/detect/runs/e0/p1bfc_yolov9c_640_s1_e30p10m30 | 103174256 bytes
-  - runs/detect/runs/e0/p1bfc_yolov9c_640_s2_e30p10m30 | 103174241 bytes
-  - runs/detect/runs/e0/p1bfc_yolov10n_640_s1_e30p10m30 | 11487802 bytes
-  - runs/detect/runs/e0/p1bfc_yolov10n_640_s2_e30p10m30 | 11487812 bytes
-  - runs/detect/runs/e0/p1bfc_yolov10s_640_s1_e30p10m30 | 33038549 bytes
-  - yolov10s.pt | 16623111 bytes
-  - yolo26n.pt | 5544453 bytes
+Dokumen ini mencatat pembersihan artefak lokal yang dilakukan untuk menghemat ruang disk di environment RunPod. Pembersihan ini **tidak** dimaksudkan untuk menghapus source of truth eksperimen dari remote. Untuk memastikan artefak final tetap aman, baca juga [outputs/reports/reproducibility_and_termination.md](reproducibility_and_termination.md).
 
-## 2026-03-27T09:57:26Z
-- remote_verified: origin/main @ 1d14971
-- active_run_preserved: p2s2_bs8_yolo11m_640_s2_e30p10m30
-- removed_count: 58
-- freed_bytes_estimate: 2796780532
-- repo_bytes_before: 5809762784
-- repo_bytes_after: 3003069692
-- disk_before: mfs#eu-se-1.runpod.net:9421  756T  587T  169T  78% /workspace
-- disk_after: mfs#eu-se-1.runpod.net:9421  756T  587T  169T  78% /workspace
-- uploaded_small_artifacts_now:
-  - outputs/phase2/p2s2_bs8_yolo11m_640_s1_e30p10m30_eval.json
-- removed_paths:
-  - runs/detect/runs/e0/p0_lc100_yolo11n_640_s1_e30p10m30 | 14926867 bytes
-  - runs/detect/runs/e0/p0_lc25_yolo11n_640_s1_e30p10m30 | 14926871 bytes
-  - runs/detect/runs/e0/p0_lc50_yolo11n_640_s1_e30p10m30 | 14926855 bytes
-  - runs/detect/runs/e0/p0_lc75_yolo11n_640_s1_e30p10m30 | 14926871 bytes
-  - runs/detect/runs/e0/p0_yolo11n_1024_s1_e3 | 15039855 bytes
-  - runs/detect/runs/e0/p0_yolo11n_1024_s1_e30 | 15049260 bytes
-  - runs/detect/runs/e0/p0_yolo11n_1024_s1_e30p10m30 | 15050015 bytes
-  - runs/detect/runs/e0/p0_yolo11n_1024_s2_e3 | 15039853 bytes
-  - runs/detect/runs/e0/p0_yolo11n_1024_s2_e30p10m30 | 15050021 bytes
-  - runs/detect/runs/e0/p0_yolo11n_640_s1_e3 | 14916563 bytes
-  - runs/detect/runs/e0/p0_yolo11n_640_s1_e30 | 14926343 bytes
-  - runs/detect/runs/e0/p0_yolo11n_640_s1_e30p10m30 | 14926726 bytes
-  - runs/detect/runs/e0/p0_yolo11n_640_s2_e3 | 14916561 bytes
-  - runs/detect/runs/e0/p0_yolo11n_640_s2_e30p10m30 | 14926708 bytes
-  - runs/detect/runs/e0/p1a_stage1_singlecls_yolo11n_640_s1_e30p10m30 | 14924350 bytes
-  - runs/detect/runs/e0/p1a_stage1_singlecls_yolo11n_640_s2_e30p10m30 | 14924343 bytes
-  - runs/detect/runs/e0/p1b_yolo11n_640_s1_e30p10m30 | 14926730 bytes
-  - runs/detect/runs/e0/p1b_yolov8m_640_s1_e30p10m30 | 108064992 bytes
-  - runs/detect/runs/e0/p1b_yolov8n_640_s1_e30p10m30 | 16480467 bytes
-  - runs/detect/runs/e0/p1b_yolov8s_640_s1_e30p10m30 | 49026960 bytes
-  - runs/detect/runs/e0/p1bfc_yolo11m_640_s1_e30p10m30 | 85033854 bytes
-  - runs/detect/runs/e0/p1bfc_yolo11m_640_s2_e30p10m30 | 85033848 bytes
-  - runs/detect/runs/e0/p1bfc_yolo26m_640_s1_e30p10m30 | 92059166 bytes
-  - runs/detect/runs/e0/p1bfc_yolo26m_640_s2_e30p10m30 | 92059152 bytes
-  - runs/detect/runs/e0/p1bfc_yolo26n_640_s1_e30p10m30 | 14761049 bytes
-  - runs/detect/runs/e0/p1bfc_yolo26n_640_s2_e30p10m30 | 14761050 bytes
-  - runs/detect/runs/e0/p1bfc_yolo26s_640_s1_e30p10m30 | 44620182 bytes
-  - runs/detect/runs/e0/p1bfc_yolo26s_640_s2_e30p10m30 | 44620167 bytes
-  - runs/detect/runs/e0/p1bfc_yolov10m_640_s1_e30p10m30 | 70957747 bytes
-  - runs/detect/runs/e0/p1bfc_yolov10m_640_s2_e30p10m30 | 70957748 bytes
-  - runs/detect/runs/e0/p1bfc_yolov10n_640_s1_e30p10m30 | 15489992 bytes
-  - runs/detect/runs/e0/p1bfc_yolov10n_640_s2_e30p10m30 | 15490002 bytes
-  - runs/detect/runs/e0/p1bfc_yolov10s_640_s1_e30p10m30 | 37044849 bytes
-  - runs/detect/runs/e0/p1bfc_yolov10s_640_s2_e30p10m30 | 37044856 bytes
-  - runs/detect/runs/e0/p1bfc_yolov8m_640_s1_e30p10m30 | 108064885 bytes
-  - runs/detect/runs/e0/p1bfc_yolov8m_640_s2_e30p10m30 | 108064888 bytes
-  - runs/detect/runs/e0/p1bfc_yolov8n_640_s1_e30p10m30 | 16480363 bytes
-  - runs/detect/runs/e0/p1bfc_yolov8n_640_s2_e30p10m30 | 16480364 bytes
-  - runs/detect/runs/e0/p1bfc_yolov8s_640_s1_e30p10m30 | 49026860 bytes
-  - runs/detect/runs/e0/p1bfc_yolov8s_640_s2_e30p10m30 | 49026857 bytes
-  - runs/detect/runs/e0/p1bfc_yolov9c_640_s1_e30p10m30 | 107193933 bytes
-  - runs/detect/runs/e0/p1bfc_yolov9c_640_s2_e30p10m30 | 107193918 bytes
-  - runs/detect/runs/e0/p2s0a_class_weighted_yolo11m_640_s1_e30p10m30 | 85034020 bytes
-  - runs/detect/runs/e0/p2s0a_class_weighted_yolo11m_640_s2_e30p10m30 | 85034008 bytes
-  - runs/detect/runs/e0/p2s0a_focal15_yolo11m_640_s1_e30p10m30 | 85034000 bytes
-  - runs/detect/runs/e0/p2s0a_focal15_yolo11m_640_s2_e30p10m30 | 85033993 bytes
-  - runs/detect/runs/e0/p2s0a_none_yolo11m_640_s1_e30p10m30 | 85033870 bytes
-  - runs/detect/runs/e0/p2s0a_none_yolo11m_640_s2_e30p10m30 | 85033859 bytes
-  - runs/detect/runs/e0/p2s0b_standard_yolo11m_640_s1_e30p10m30 | 85034008 bytes
-  - runs/detect/runs/e0/p2s1_lr0005_yolo11m_640_s1_e30p10m30 | 85033909 bytes
-  - runs/detect/runs/e0/p2s1_lr0005_yolo11m_640_s2_e30p10m30 | 85033907 bytes
-  - runs/detect/runs/e0/p2s1_lr002_yolo11m_640_s1_e30p10m30 | 85033850 bytes
-  - runs/detect/runs/e0/p2s1_lr002_yolo11m_640_s2_e30p10m30 | 85033854 bytes
-  - runs/detect/runs/e0/p2s2_bs8_yolo11m_640_s1_e30p10m30 | 85033905 bytes
-  - runs/classify/runs/e0/p1a_stage2_cls_yolo11ncls_gtcrop_s1_e30p10m30 | 10390921 bytes
-  - runs/classify/runs/e0/p1a_stage2_cls_yolo11ncls_gtcrop_s2_e30p10m30 | 10390914 bytes
-  - yolo11m.pt | 40684120 bytes
-  - yolo26n.pt | 5544453 bytes
+## Prinsip cleanup yang dipakai
+
+Cleanup lokal dilakukan dengan aturan berikut:
+
+- artefak aktif yang masih dibutuhkan tidak dihapus
+- artefak penting yang sudah aman di Git tetap dipertahankan secara logis sebagai source of truth
+- penghapusan lokal tidak boleh diartikan sebagai penghapusan artefak resmi dari repo remote
+
+## Event cleanup 1 — 2026-03-27T02:03:28Z
+
+- active run yang dipertahankan: `p1bfc_yolov10s_640_s2_e30p10m30`
+- jumlah path yang dibersihkan: **35**
+- estimasi ruang yang dibebaskan: **968,223,126 bytes**
+
+Contoh artefak yang dibersihkan pada event ini:
+
+- `runs/detect/runs/e0/p0_yolo11n_640_s1_e3`
+- `runs/detect/runs/e0/p0_yolo11n_1024_s1_e3`
+- `runs/detect/runs/e0/p0_lc25_yolo11n_640_s1_e30p10m30`
+- `runs/detect/runs/e0/p1b_yolov8m_640_s1_e30p10m30`
+- `runs/detect/runs/e0/p1bfc_yolov9c_640_s2_e30p10m30`
+- `yolov10s.pt`
+- `yolo26n.pt`
+
+## Event cleanup 2 — 2026-03-27T09:57:26Z
+
+- remote diverifikasi: `origin/main @ 1d14971`
+- active run yang dipertahankan: `p2s2_bs8_yolo11m_640_s2_e30p10m30`
+- jumlah path yang dibersihkan: **58**
+- estimasi ruang yang dibebaskan: **2,796,780,532 bytes**
+- ukuran repo sebelum cleanup: **5,809,762,784 bytes**
+- ukuran repo sesudah cleanup: **3,003,069,692 bytes**
+
+Artefak kecil yang diunggah saat cleanup ini:
+
+- `outputs/phase2/p2s2_bs8_yolo11m_640_s1_e30p10m30_eval.json`
+
+Contoh path yang dibersihkan pada event ini:
+
+- beberapa run Phase 0 (`p0_*`)
+- run komponen Phase 1A (`p1a_*`)
+- benchmark Phase 1B untuk berbagai model (`p1bfc_*`)
+- beberapa run tuning Phase 2 (`p2s0a_*`, `p2s1_*`, `p2s2_*`)
+- `yolo11m.pt`
+- `yolo26n.pt`
+
+## Cara membaca cleanup ini
+
+Dua hal paling penting:
+
+1. cleanup ini adalah **operasi lokal untuk menghemat disk**
+2. cleanup ini **bukan** keputusan untuk membatalkan artefak yang sudah menjadi source of truth di repo
+
+Karena itu, jika sebuah run lokal dibersihkan tetapi metrik dan artefak pentingnya sudah tersimpan di Git, maka referensi resmi tetap ada pada file summary, eval JSON, CSV agregat, dan dokumen phase summary.
+
+## Dokumen yang tetap menjadi acuan resmi
+
+Setelah cleanup lokal, source of truth tetap berada di:
+
+- [outputs/phase0/phase0_summary.md](../phase0/phase0_summary.md)
+- [outputs/phase1/phase1_summary.md](../phase1/phase1_summary.md)
+- [outputs/phase2/phase2_summary.md](../phase2/phase2_summary.md)
+- [outputs/phase3/final_report.md](../phase3/final_report.md)
+- [outputs/phase3/final_evaluation.md](../phase3/final_evaluation.md)
+- [outputs/reports/reproducibility_and_termination.md](reproducibility_and_termination.md)
+
+## Kesimpulan
+
+Cleanup lokal berhasil mengurangi penggunaan disk tanpa mengubah keputusan ilmiah repo. Jika ada keraguan tentang artefak mana yang harus dipercaya, prioritaskan dokumen dan file run-specific yang tercantum pada [README.md](../../README.md) dan [outputs/reports/reproducibility_and_termination.md](reproducibility_and_termination.md).

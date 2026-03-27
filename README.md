@@ -1,12 +1,12 @@
 # Brand New YOLO — Peta Baca Repo
 
-File ini adalah pintu masuk repo. Bukan untuk menceritakan semuanya, melainkan untuk menunjukkan **dokumen mana yang perlu dibuka**, **artefak mana yang jadi acuan**, dan **urutan baca yang aman**.
+Selamat datang di repo Brand New YOLO. File ini adalah pintu masuknya — kita tidak akan cerita panjang lebar di sini, tapi cukup tunjukkan dokumen apa yang perlu dibaca, artefak mana yang jadi acuan, dan urutan baca yang aman.
 
-Untuk keputusan akhir lintas fase, buka [outputs/phase3/final_report.md](outputs/phase3/final_report.md). Untuk metrik teknis run final, buka [outputs/phase3/final_evaluation.md](outputs/phase3/final_evaluation.md).
+Langsung ke intinya? Keputusan akhir lintas fase ada di [final_report.md](outputs/phase3/final_report.md). Metrik teknis run final ada di [final_evaluation.md](outputs/phase3/final_evaluation.md).
 
-## Ringkasan visual cepat
+## Ringkasan visual
 
-Kalau Anda ingin menangkap progres eksperimen E0 dalam sekali lihat, empat chart ini memisahkan tiap metrik supaya perubahan antar run lebih mudah dibaca. Komponen eksplorasinya ada di [yolo_e0_research_progress.jsx](yolo_e0_research_progress.jsx), sementara PNG README digenerate dari [outputs/reports/run_ledger.csv](outputs/reports/run_ledger.csv) lewat [scripts/generate_e0_research_progress_charts.py](scripts/generate_e0_research_progress_charts.py).
+Empat chart di bawah memisahkan tiap metrik biar perubahan antar run lebih mudah dilihat. Komponen eksplorasinya ada di [yolo_e0_research_progress.jsx](yolo_e0_research_progress.jsx), sementara PNG-nya dihasilkan dari [run_ledger.csv](outputs/reports/run_ledger.csv).
 
 ![E0 research progress mAP50](outputs/figures/e0_research_progress_map50.png)
 
@@ -28,7 +28,7 @@ Kalau Anda ingin menangkap progres eksperimen E0 dalam sekali lihat, empat chart
 
 ## Hierarki acuan
 
-Kalau ada konflik antar dokumen, ikuti urutan berikut:
+Kalau ada konflik antar dokumen, pakai urutan prioritas berikut:
 
 1. Artefak run final yang melekat langsung ke run:
    - [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json](outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json)
@@ -66,7 +66,7 @@ Mapping yang sama juga tertulis di:
 
 ## Keputusan akhir
 
-Berikut keputusan yang dikunci sampai akhir:
+Berikut keputusan yang kita kunci sampai akhir:
 
 - pipeline final: **one-stage**
 - model final: **`yolo11m.pt`**
@@ -83,7 +83,7 @@ Bukti langsung:
 
 ## Angka resmi final
 
-Ambil dari dua file run-specific berikut:
+Angka ini diambil dari dua file run-specific berikut:
 
 - [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json](outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json)
 - [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_summary.json](outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_summary.json)

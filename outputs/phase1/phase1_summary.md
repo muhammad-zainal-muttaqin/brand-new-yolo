@@ -1,110 +1,117 @@
-# Phase 1A Summary
+# Phase 1 Summary
 
-## Navigasi mini
+Dua keputusan Phase 1:
 
-- Ringkasan repo: [README.md](../../README.md)
-- Kembali ke resolusi/dataset: [outputs/phase0/phase0_summary.md](../phase0/phase0_summary.md)
-- Hasil one-stage: [outputs/phase1/one_stage_results.csv](one_stage_results.csv)
-- Hasil two-stage: [outputs/phase1/two_stage_results.csv](two_stage_results.csv)
-- Benchmark arsitektur Phase 1B: [outputs/phase1/architecture_benchmark.csv](architecture_benchmark.csv)
-- Top-3 Phase 1B: [outputs/phase1/phase1b_top3.csv](phase1b_top3.csv)
-- Lock setup final: [outputs/phase1/locked_setup.yaml](locked_setup.yaml)
-- Lanjut ke tuning: [outputs/phase2/phase2_summary.md](../phase2/phase2_summary.md)
+1. **Phase 1A** — milih pipeline `one-stage` atau `two-stage`
+2. **Phase 1B** — milih arsitektur terbaik di pipeline yang menang
 
-## Inputs dari Phase 0
+Dasar keputusan resolusi dan dataset ada di [phase0_summary.md](../phase0/phase0_summary.md), hasil tuning di [phase2_summary.md](../phase2/phase2_summary.md).
 
-- Resolusi kerja yang dipakai: `640`
-- Pipeline dibandingkan pada family ringan yang sama untuk menjaga apple-to-apple.
+## Sumber utama
 
-## One-stage baseline (4 kelas langsung)
+Artefak yang dipakai:
 
-- Mean mAP50-95: **0.2526**
-- Seed 1 mAP50-95: **0.2538**
-- Seed 2 mAP50-95: **0.2514**
+- [one_stage_results.csv](one_stage_results.csv)
+- [two_stage_results.csv](two_stage_results.csv)
+- [architecture_benchmark.csv](architecture_benchmark.csv)
+- [phase1b_top3.csv](phase1b_top3.csv)
+- [locked_setup.yaml](locked_setup.yaml)
 
-## Two-stage feasibility (component-level)
+## 1. Input dari Phase 0
 
-- Stage-1 single-class detector mean mAP50-95: **0.3850**
-- Stage-2 GT-crop classifier mean top-1 accuracy: **0.6380**
-- Stage-2 diukur pada crop ground-truth, sehingga ini adalah upper-bound untuk bagian klasifikasinya, bukan metrik end-to-end penuh.
+Phase 1 pakai hasil lock dari Phase 0:
 
-## Confusion penting stage-2 classifier (seed 1, val GT-crops)
+- resolusi kerja: **`640`**
+- dataset aktif: [Dataset-YOLO/data.yaml](../../Dataset-YOLO/data.yaml)
+- tujuan perbandingan: jaga setup tetap apple-to-apple antar pipeline
 
-- B2 correct: **211.0**
-- B2 -> B3: **94.0**
-- B3 correct: **1112.0**
-- B3 -> B2: **334.0**
-- Confusion B2/B3 tetap besar bahkan saat objek sudah di-crop dengan ground-truth box.
+## 2. Phase 1A — keputusan pipeline
 
-## Keputusan Phase 1A
+### One-stage baseline
 
-> **Pilih pipeline one-stage untuk Phase 1B.**
+Hasil one-stage dari [one_stage_results.csv](one_stage_results.csv):
 
-Alasan:
+- mean mAP50-95: **0.2526**
+- seed 1 mAP50-95: **0.2538**
+- seed 2 mAP50-95: **0.2514**
 
-- one-stage sudah memberi baseline yang jujur dan langsung terukur pada task akhir 4 kelas,
-- stage-1 detector two-stage memang kuat untuk lokalisasi 1 kelas, tetapi stage-2 classifier pada GT crops masih mentok di sekitar 0.638 top-1,
-- karena classifier pada crop bersih saja masih menunjukkan confusion B2/B3 yang besar, belum ada evidence kuat bahwa two-stage akan mengungguli one-stage secara end-to-end.
+### Two-stage feasibility
 
-## Phase 1B — Canonical Flowchart-Synced Sweep
+Hasil two-stage komponen dari [two_stage_results.csv](two_stage_results.csv):
 
-- Phase 2 locked single best model: `yolo11m.pt`
-- Reference top-3 ranking saved to `outputs/phase1/phase1b_top3.csv`: `yolo11m.pt, yolov9c.pt, yolov8s.pt`
-- Best Phase 1B mean mAP50: `0.5298`
-- Best Phase 1B mean mAP50-95: `0.2570`
-- Gate canonical `mAP50 >= 0.70`: `False`
-- Local override continue despite gate: `True`
+- stage-1 single-class detector mean mAP50-95: **0.3850**
+- stage-2 GT-crop classifier mean top-1 accuracy: **0.6380**
 
-## Phase 1B — Canonical Flowchart-Synced Sweep
+Catatan: stage-2 diukur di **ground-truth crops**, jadi angka itu **upper-bound komponen klasifikasi**, bukan hasil pipeline end-to-end penuh.
 
-- Phase 2 locked single best model: `yolo11m.pt`
-- Reference top-3 ranking saved to `outputs/phase1/phase1b_top3.csv`: `yolo11m.pt, yolov9c.pt, yolov8s.pt`
-- Best Phase 1B mean mAP50: `0.5298`
-- Best Phase 1B mean mAP50-95: `0.2570`
-- Gate canonical `mAP50 >= 0.70`: `False`
-- Local override continue despite gate: `True`
+### Confusion di stage-2 classifier
 
-## Phase 1B — Canonical Flowchart-Synced Sweep
+Dari evaluasi seed 1 di GT crops:
 
-- Phase 2 locked single best model: `yolo11m.pt`
-- Reference top-3 ranking saved to `outputs/phase1/phase1b_top3.csv`: `yolo11m.pt, yolov9c.pt, yolov8s.pt`
-- Best Phase 1B mean mAP50: `0.5298`
-- Best Phase 1B mean mAP50-95: `0.2570`
-- Gate canonical `mAP50 >= 0.70`: `False`
-- Local override continue despite gate: `True`
+- `B2 correct`: **211**
+- `B2 -> B3`: **94**
+- `B3 correct`: **1112**
+- `B3 -> B2`: **334**
 
-## Phase 1B — Canonical Flowchart-Synced Sweep
+Jadi, bahkan pas objek udah dipotong pake bounding box ground truth, confusion `B2/B3` masih besar.
 
-- Phase 2 locked single best model: `yolo11m.pt`
-- Reference top-3 ranking saved to `outputs/phase1/phase1b_top3.csv`: `yolo11m.pt, yolov9c.pt, yolov8s.pt`
-- Best Phase 1B mean mAP50: `0.5298`
-- Best Phase 1B mean mAP50-95: `0.2570`
-- Gate canonical `mAP50 >= 0.70`: `False`
-- Local override continue despite gate: `True`
+### Keputusan Phase 1A
 
-## Phase 1B — Canonical Flowchart-Synced Sweep
+> **Pipeline yang dipilih: `one-stage`.**
 
-- Phase 2 locked single best model: `yolo11m.pt`
-- Reference top-3 ranking saved to `outputs/phase1/phase1b_top3.csv`: `yolo11m.pt, yolov9c.pt, yolov8s.pt`
-- Best Phase 1B mean mAP50: `0.5298`
-- Best Phase 1B mean mAP50-95: `0.2570`
-- Gate canonical `mAP50 >= 0.70`: `False`
-- Local override continue despite gate: `True`
+Alasannya:
 
-## Phase 1B — Canonical Flowchart-Synced Sweep
+- one-stage langsung ngukur task akhir 4 kelas
+- stage-1 two-stage emang kuat buat deteksi 1 kelas, tapi stage-2 classifier belum nunjukin bukti kuat bisa nyelesaiin confusion `B2/B3`
+- belum ada evidence cukup buat bilang two-stage bakal ngunggulin one-stage secara end-to-end
 
-- Phase 2 locked single best model: `yolo11m.pt`
-- Reference top-3 ranking saved to `outputs/phase1/phase1b_top3.csv`: `yolo11m.pt, yolov9c.pt, yolov8s.pt`
-- Best Phase 1B mean mAP50: `0.5298`
-- Best Phase 1B mean mAP50-95: `0.2570`
-- Gate canonical `mAP50 >= 0.70`: `False`
-- Local override continue despite gate: `True`
+## 3. Phase 1B — Benchmark arsitektur
 
-## Phase 1B — Canonical Flowchart-Synced Sweep
+Phase 1B jalanin benchmark arsitektur di pipeline `one-stage` dengan resolusi `640`, `lr0=0.001`, `batch=16`, `medium augmentation`, dan `2 seeds` per model. Hasil agregasi ada di [architecture_benchmark.csv](architecture_benchmark.csv).
 
-- Phase 2 locked single best model: `yolo11m.pt`
-- Reference top-3 ranking saved to `outputs/phase1/phase1b_top3.csv`: `yolo11m.pt, yolov9c.pt, yolov8s.pt`
-- Best Phase 1B mean mAP50: `0.5298`
-- Best Phase 1B mean mAP50-95: `0.2570`
-- Gate canonical `mAP50 >= 0.70`: `False`
-- Local override continue despite gate: `True`
+### Top-3 arsitektur
+
+Referensi resmi top-3 ada di [outputs/phase1/phase1b_top3.csv](phase1b_top3.csv):
+
+| Rank | Model | mean mAP50 | mean mAP50-95 |
+|---:|---|---:|---:|
+| 1 | `yolo11m.pt` | 0.5298 | 0.2570 |
+| 2 | `yolov9c.pt` | 0.5292 | 0.2518 |
+| 3 | `yolov8s.pt` | 0.5256 | 0.2521 |
+
+### Pembacaan hasil benchmark
+
+- `yolo11m.pt` menang tipis, tetapi konsisten
+- gap antar model teratas tidak besar
+- tidak ada model yang menembus gate canonical `mAP50 >= 0.70`
+
+### Gate canonical dan override repo
+
+Dari [outputs/phase1/locked_setup.yaml](locked_setup.yaml):
+
+- gate canonical `mAP50 >= 0.70`: **False**
+- local override continue: **True**
+
+Jadi, secara canonical fase ini seharusnya berhenti. Tapi repo ini emang pakai override operasional biar baseline end-to-end tetep selesai sampe Phase 3.
+
+## 4. Model yang dikunci ke Phase 2
+
+Model yang di-lock: **`yolo11m.pt`**.
+
+Bukti resmi:
+
+- [phase1b_top3.csv](phase1b_top3.csv)
+- [locked_setup.yaml](locked_setup.yaml)
+
+Lock ini artinya Phase 2 **nggak** buka architecture search baru. Phase 2 cuma nge-tune satu model yang udah dipilih di Phase 1B.
+
+## 5. Keputusan akhir Phase 1
+
+Phase 1 berakhir dengan dua keputusan yang jelas:
+
+1. pipeline final: **`one-stage`**
+2. model final untuk tuning: **`yolo11m.pt`**
+
+## 6. Langkah berikutnya
+
+Setelah model dikunci, eksperimen lanjut ke Phase 2. Buka [outputs/phase2/phase2_summary.md](../phase2/phase2_summary.md) untuk melihat apakah tuning memberi perbaikan nyata atau tidak.
