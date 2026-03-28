@@ -82,6 +82,12 @@ Ada beberapa hal menarik dari benchmark ini:
 
 **Model-model besar belum tentu lebih baik.** yolov10m (0.505) dan yolo26m (0.516) kalah dari yolov8s (0.526). Ini lagi-lagi menunjukkan bahwa capacity model bukan bottleneck — data dan task yang membatasi.
 
+### Per-class heatmap
+
+![Per-class heatmap across architectures](figures/p1_per_class_heatmap.png)
+
+Heatmap ini memperlihatkan mAP50 per kelas di semua arsitektur. Pola yang muncul sangat konsisten: B1 selalu hijau (tinggi), B4 selalu merah (rendah), terlepas dari model yang dipakai. Ini mengonfirmasi bahwa difficulty ranking antar kelas — B1 > B3 > B2 > B4 — adalah sifat inherent dari task dan dataset, bukan artefak dari arsitektur tertentu.
+
 ### Gate canonical dan override
 
 Dari [locked_setup.yaml](locked_setup.yaml):

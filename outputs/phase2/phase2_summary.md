@@ -89,6 +89,8 @@ Sumber: [imbalance_sweep.csv](imbalance_sweep.csv).
 | `class_weighted` | 0.5298 | 0.2570 | 0.3673 |
 | `focal15` | 0.5298 | 0.2570 | 0.3673 |
 
+![Loss function sweep — semua strategi identik](figures/p2_imbalance_sweep.png)
+
 Ini adalah temuan yang paling informatif di Phase 2, meskipun pada pandangan pertama terlihat "kosong". Ketiga strategi loss menghasilkan angka yang persis sama — bukan mirip, tapi **identik** sampai 4 desimal.
 
 Apa artinya? Loss function bukan bottleneck. Model sudah mengekstrak informasi dari data seefisien yang bisa dilakukan pada arsitektur dan resolusi ini. Mengubah cara loss di-weight (class_weighted) atau mengubah bentuk loss (focal) tidak mengubah apa yang model pelajari. Ini kuat mengindikasikan bahwa **ceiling performa ditentukan oleh data dan task difficulty, bukan training objective**.

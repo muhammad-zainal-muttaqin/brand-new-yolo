@@ -41,7 +41,11 @@ Run final ini menggunakan konfigurasi yang sudah di-lock sejak akhir Phase 2. Ti
 | Data file | [outputs/phase3/final_data.yaml](final_data.yaml) |
 | Best weight | [runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/best.pt](../../runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/best.pt) |
 
-Perlu dicatat bahwa epoch budget 60 dengan patience 15 memberi ruang cukup bagi model untuk converge sepenuhnya — berbeda dengan run-run eksplorasi di Phase 1-2 yang hanya 30 epoch.
+Perlu dicatat bahwa epoch budget 60 dengan patience 15 memberi ruang cukup bagi model untuk converge sepenuhnya — berbeda dengan run-run eksplorasi di Phase 1-2 yang hanya 30 epoch. Training curves di bawah menunjukkan bahwa model memang memanfaatkan budget ini dengan baik:
+
+![Training curves final run](figures/p3_training_curves.png)
+
+Loss menurun monoton di training set, validation loss stabil setelah ~epoch 20, dan mAP50 mencapai puncaknya di pertengahan training sebelum plateau. Model tidak menunjukkan tanda overfitting yang parah.
 
 ## 2. Metrik resmi test set
 
@@ -139,6 +143,10 @@ Jejak keputusan lengkapnya:
 - [outputs/phase2/p2confirm_yolo11m_640_s3_e30p10m30_eval.json](../phase2/p2confirm_yolo11m_640_s3_e30p10m30_eval.json) — confirmation run Phase 2 dengan seed ke-3
 
 Perbandingan cepat: confirmation run Phase 2 menghasilkan mAP50 ~0.53 pada val set, sementara run final menghasilkan 0.47 pada test set. Drop ini expected — test set sengaja dipisahkan sejak awal dan tidak pernah dipakai untuk model selection, jadi angka yang lebih rendah justru menandakan evaluasi yang jujur.
+
+![Evolusi per-class mAP50 lintas fase](figures/p3_cross_phase_comparison.png)
+
+Chart di atas memperlihatkan evolusi per-class mAP50 dari Phase 1B → Phase 2 → Phase 3. Hanya B1 yang konsisten di atas target 0.70. Kelas lainnya tidak pernah mendekati target, bahkan dengan budget training lebih besar.
 
 ## 7. Status deploy
 

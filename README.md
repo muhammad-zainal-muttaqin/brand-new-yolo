@@ -151,7 +151,13 @@ Tidak ada model yang melewati gate canonical mAP50 ≥ 0.70. Repo ini menggunaka
 
 **Keputusan: model = `yolo11m.pt`.** Lock file: [locked_setup.yaml](outputs/phase1/locked_setup.yaml).
 
-Sumber: [architecture_benchmark.csv](outputs/phase1/architecture_benchmark.csv)
+Yang menarik: kalau kita lihat performa per kelas di **semua** arsitektur, pola yang sama muncul di mana-mana — B1 selalu tinggi, B4 selalu rendah, terlepas dari model yang dipakai:
+
+![Per-class heatmap across architectures](outputs/phase1/figures/p1_per_class_heatmap.png)
+
+Heatmap ini mengonfirmasi bahwa difficulty ranking antar kelas (B1 > B3 > B2 > B4) bukan artefak dari satu model tertentu — ini adalah sifat inherent dari task dan dataset.
+
+Sumber: [architecture_benchmark.csv](outputs/phase1/architecture_benchmark.csv), [per_class_metrics.csv](outputs/phase1/per_class_metrics.csv)
 
 ---
 
@@ -171,7 +177,9 @@ Temuan paling informatif datang dari step pertama. Tiga strategi loss (`none`, `
 | `class_weighted` | 0.5298 | 0.2570 | 0.3673 |
 | `focal15` | 0.5298 | 0.2570 | 0.3673 |
 
-Ini kuat mengindikasikan bahwa model sudah mengekstrak sinyal seefisien yang bisa dari data yang ada — mengubah objective function tidak mengubah apa yang dipelajari.
+![Imbalance/loss sweep — semua identik](outputs/phase2/figures/p2_imbalance_sweep.png)
+
+Secara visual langsung terlihat: bar-bar untuk ketiga strategi persis sama. Ini kuat mengindikasikan bahwa model sudah mengekstrak sinyal seefisien yang bisa dari data yang ada — mengubah objective function tidak mengubah apa yang dipelajari.
 
 #### LR, batch, dan augmentation sweep
 
@@ -200,6 +208,12 @@ Sumber: [lr_sweep.csv](outputs/phase2/lr_sweep.csv), [batch_sweep.csv](outputs/p
 > Detail lengkap: [final_evaluation.md](outputs/phase3/final_evaluation.md) · [error_analysis.md](outputs/phase3/error_analysis.md)
 
 Phase 3 melakukan retrain final dengan budget lebih besar (60 epoch, patience 15, seed 42) pada konfigurasi yang sudah di-lock, lalu evaluasi pada test set yang tidak pernah disentuh selama training maupun tuning.
+
+#### Training curves
+
+![Training curves final run](outputs/phase3/figures/p3_training_curves.png)
+
+Training curves menunjukkan model converge dengan baik: training loss menurun monoton, validation loss stabil setelah ~epoch 20, dan mAP50 mencapai puncaknya di pertengahan training sebelum plateau. Model tidak menunjukkan tanda overfitting yang parah — validation loss tidak naik kembali, menandakan bahwa patience 15 dan epoch budget 60 sudah tepat.
 
 #### Performa per kelas
 
@@ -238,6 +252,17 @@ Di `conf=0.1`, precision dan recall seimbang (~0.70) dan mAP50 melompat ke 0.74.
 Catatan: angka threshold sweep menentukan operating point deployment, bukan mengganti skor resmi di eval JSON.
 
 Sumber: [threshold_sweep.csv](outputs/phase3/threshold_sweep.csv)
+
+#### Evolusi performa lintas fase
+
+![Cross-phase comparison](outputs/phase3/figures/p3_cross_phase_comparison.png)
+
+Chart ini merangkum perjalanan per-class mAP50 dari Phase 1B baseline (val set, 30 epoch) → Phase 2 confirmation (val set, seed 3) → Phase 3 final (test set, 60 epoch). Beberapa hal yang terlihat:
+
+- **B1 konsisten di atas target 0.70** di semua fase — satu-satunya kelas yang lolos
+- **B2, B3, B4 tidak pernah mendekati target** di fase manapun
+- Drop dari Phase 2 (val) ke Phase 3 (test) pada B2 dan B4 menandakan bahwa val set sedikit lebih "mudah" dari test set untuk kelas-kelas ini
+- Gap terbesar ada di B4: dari ~0.38 di Phase 1B ke 0.27 di Phase 3 test — menunjukkan bahwa B4 bahkan lebih sulit di test set
 
 #### Error dominan
 
