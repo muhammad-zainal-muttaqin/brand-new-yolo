@@ -1,117 +1,112 @@
 # Phase 1 Summary
 
-Dua keputusan Phase 1:
+Phase 1 menjawab dua pertanyaan besar: pipeline mana yang paling realistis untuk task 4-kelas ini (one-stage vs two-stage), dan arsitektur mana yang paling stabil di pipeline yang menang. Keduanya dijalankan dalam kondisi terkontrol — resolusi, batch, augmentation, dan seed sudah di-lock dari Phase 0.
 
-1. **Phase 1A** — milih pipeline `one-stage` atau `two-stage`
-2. **Phase 1B** — milih arsitektur terbaik di pipeline yang menang
+Dasar keputusan resolusi dan dataset ada di [phase0_summary.md](../phase0/phase0_summary.md). Hasil tuning di [phase2_summary.md](../phase2/phase2_summary.md).
 
-Dasar keputusan resolusi dan dataset ada di [phase0_summary.md](../phase0/phase0_summary.md), hasil tuning di [phase2_summary.md](../phase2/phase2_summary.md).
+## Sumber data
 
-## Sumber utama
-
-Artefak yang dipakai:
-
-- [one_stage_results.csv](one_stage_results.csv)
-- [two_stage_results.csv](two_stage_results.csv)
-- [architecture_benchmark.csv](architecture_benchmark.csv)
-- [phase1b_top3.csv](phase1b_top3.csv)
-- [locked_setup.yaml](locked_setup.yaml)
+- [one_stage_results.csv](one_stage_results.csv) — hasil one-stage baseline
+- [two_stage_results.csv](two_stage_results.csv) — hasil two-stage per komponen
+- [architecture_benchmark.csv](architecture_benchmark.csv) — benchmark 11 arsitektur
+- [phase1b_top3.csv](phase1b_top3.csv) — top-3 model
+- [locked_setup.yaml](locked_setup.yaml) — lock file Phase 1
 
 ## 1. Input dari Phase 0
 
-Phase 1 pakai hasil lock dari Phase 0:
+Phase 1 membawa dua lock dari Phase 0:
+- Resolusi kerja: **640**
+- Dataset aktif: [Dataset-YOLO/data.yaml](../../Dataset-YOLO/data.yaml)
 
-- resolusi kerja: **`640`**
-- dataset aktif: [Dataset-YOLO/data.yaml](../../Dataset-YOLO/data.yaml)
-- tujuan perbandingan: jaga setup tetap apple-to-apple antar pipeline
+Semua perbandingan di Phase 1 menggunakan konfigurasi yang identik supaya hasilnya apple-to-apple.
 
-## 2. Phase 1A — keputusan pipeline
+## 2. Phase 1A — Keputusan pipeline
 
 ### One-stage baseline
 
-Hasil one-stage dari [one_stage_results.csv](one_stage_results.csv):
+Dari [one_stage_results.csv](one_stage_results.csv), one-stage detector (yolo11n, 4-class) menghasilkan:
 
-- mean mAP50-95: **0.2526**
-- seed 1 mAP50-95: **0.2538**
-- seed 2 mAP50-95: **0.2514**
+- Mean mAP50: **0.5241**
+- Mean mAP50-95: **0.2526**
+- Variance antar seed sangat kecil (±0.001)
 
 ### Two-stage feasibility
 
-Hasil two-stage komponen dari [two_stage_results.csv](two_stage_results.csv):
+Dari [two_stage_results.csv](two_stage_results.csv), pipeline two-stage terdiri dari:
 
-- stage-1 single-class detector mean mAP50-95: **0.3850**
-- stage-2 GT-crop classifier mean top-1 accuracy: **0.6380**
+- **Stage-1**: single-class detector (mendeteksi "buah sawit" tanpa membedakan kelas) → mean mAP50-95: **0.3850**
+- **Stage-2**: classifier pada ground-truth crops → mean top-1 accuracy: **63.8%**
 
-Catatan: stage-2 diukur di **ground-truth crops**, jadi angka itu **upper-bound komponen klasifikasi**, bukan hasil pipeline end-to-end penuh.
+Penting: stage-2 diukur pada **ground-truth crops**, bukan prediksi stage-1. Artinya, 63.8% itu adalah *upper bound* — performa end-to-end pasti lebih rendah karena stage-1 tidak sempurna.
 
-### Confusion di stage-2 classifier
+![Perbandingan one-stage vs two-stage](figures/p1_one_vs_two_stage.png)
 
-Dari evaluasi seed 1 di GT crops:
+### Kenapa two-stage tidak dipilih
 
-- `B2 correct`: **211**
-- `B2 -> B3`: **94**
-- `B3 correct`: **1112**
-- `B3 -> B2`: **334**
+Alasan utama bukan karena angka overall two-stage lebih rendah — itu sudah expected karena pipeline lebih panjang. Alasan yang sebenarnya ada di **confusion matrix stage-2 classifier** pada GT crops:
 
-Jadi, bahkan pas objek udah dipotong pake bounding box ground truth, confusion `B2/B3` masih besar.
+| | Prediksi B2 | Prediksi B3 |
+|---|---:|---:|
+| Ground truth B2 | 211 (correct) | **94** (confused → B3) |
+| Ground truth B3 | **334** (confused → B2) | 1,112 (correct) |
 
-### Keputusan Phase 1A
+Bahkan saat objek sudah dipotong sempurna menggunakan bounding box ground truth — menghilangkan semua noise dari background dan lokalisasi — classifier masih salah mengklasifikasikan B2 sebagai B3 pada **31% kasus** (94 dari 305). Lebih parah lagi, B3 salah jadi B2 pada 23% kasus (334 dari 1,446).
 
-> **Pipeline yang dipilih: `one-stage`.**
+Ini adalah temuan yang krusial. Kalau classifier tidak bisa membedakan B2 dan B3 bahkan pada kondisi ideal (GT crops), menambahkan complexity dua pipeline tidak akan menyelesaikan masalah fundamental ini. One-stage detector yang langsung mengoptimasi 4-class detection setidaknya bisa memanfaatkan konteks spasial (posisi relatif dalam tandan, ukuran relatif antar buah) yang hilang saat objek dipotong menjadi crop individual.
 
-Alasannya:
-
-- one-stage langsung ngukur task akhir 4 kelas
-- stage-1 two-stage emang kuat buat deteksi 1 kelas, tapi stage-2 classifier belum nunjukin bukti kuat bisa nyelesaiin confusion `B2/B3`
-- belum ada evidence cukup buat bilang two-stage bakal ngunggulin one-stage secara end-to-end
+> **Keputusan: pipeline `one-stage`.**
 
 ## 3. Phase 1B — Benchmark arsitektur
 
-Phase 1B jalanin benchmark arsitektur di pipeline `one-stage` dengan resolusi `640`, `lr0=0.001`, `batch=16`, `medium augmentation`, dan `2 seeds` per model. Hasil agregasi ada di [architecture_benchmark.csv](architecture_benchmark.csv).
+Setelah pipeline di-lock, 11 arsitektur YOLO di-benchmark dalam kondisi identik: resolusi 640, `lr0=0.001`, `batch=16`, augmentasi medium, 2 seed per model.
 
-### Top-3 arsitektur
+### Ranking lengkap
 
-Referensi resmi top-3 ada di [outputs/phase1/phase1b_top3.csv](phase1b_top3.csv):
+![Architecture benchmark — ranking by mAP50](figures/p1_architecture_benchmark.png)
 
-| Rank | Model | mean mAP50 | mean mAP50-95 |
-|---:|---|---:|---:|
-| 1 | `yolo11m.pt` | 0.5298 | 0.2570 |
-| 2 | `yolov9c.pt` | 0.5292 | 0.2518 |
-| 3 | `yolov8s.pt` | 0.5256 | 0.2521 |
+### Top-3
 
-### Pembacaan hasil benchmark
+Dari [phase1b_top3.csv](phase1b_top3.csv):
 
-- `yolo11m.pt` menang tipis, tetapi konsisten
-- gap antar model teratas tidak besar
-- tidak ada model yang menembus gate canonical `mAP50 >= 0.70`
+| Rank | Model | Mean mAP50 | Mean mAP50-95 | Mean B4 Recall |
+|---:|---|---:|---:|---:|
+| 1 | `yolo11m.pt` | 0.5298 | 0.2570 | 0.367 |
+| 2 | `yolov9c.pt` | 0.5292 | 0.2518 | 0.352 |
+| 3 | `yolov8s.pt` | 0.5256 | 0.2521 | 0.411 |
 
-### Gate canonical dan override repo
+Ada beberapa hal menarik dari benchmark ini:
 
-Dari [outputs/phase1/locked_setup.yaml](locked_setup.yaml):
+**Gap antar model teratas sangat kecil.** Selisih yolo11m dan yolov9c hanya 0.0006 mAP50 — nyaris dalam margin of error. Ini menandakan bahwa di task dan dataset ini, bottleneck performa bukan di pilihan arsitektur model, tapi di task difficulty dan data quality itu sendiri. Ganti model family dari YOLOv8 ke YOLO11 ke YOLOv9 tidak menghasilkan lompatan performa.
 
-- gate canonical `mAP50 >= 0.70`: **False**
-- local override continue: **True**
+**yolov8s punya B4 recall tertinggi** (0.411) meskipun overall mAP50-nya lebih rendah. Ini menarik — model yang lebih kecil (s-variant) kadang lebih baik mendeteksi objek kecil karena feature map-nya tidak terlalu ter-downsample. Tapi keunggulan ini tidak cukup untuk mengimbangi kelemahannya di kelas lain.
 
-Jadi, secara canonical fase ini seharusnya berhenti. Tapi repo ini emang pakai override operasional biar baseline end-to-end tetep selesai sampe Phase 3.
+**Model-model besar belum tentu lebih baik.** yolov10m (0.505) dan yolo26m (0.516) kalah dari yolov8s (0.526). Ini lagi-lagi menunjukkan bahwa capacity model bukan bottleneck — data dan task yang membatasi.
 
-## 4. Model yang dikunci ke Phase 2
+### Gate canonical dan override
 
-Model yang di-lock: **`yolo11m.pt`**.
+Dari [locked_setup.yaml](locked_setup.yaml):
+- Gate canonical `mAP50 >= 0.70`: **False** — tidak ada model yang melewati threshold ini
+- Local override continue: **True**
+
+Secara protokol E0, fase ini seharusnya berhenti karena gate tidak lolos. Tapi repo ini menggunakan override operasional agar pipeline end-to-end tetap berjalan sampai Phase 3 — keputusan ini disengaja untuk menghasilkan satu baseline lengkap yang bisa dijadikan referensi, meskipun performanya belum ideal.
+
+## 4. Model yang di-lock
+
+Model yang di-lock ke Phase 2: **`yolo11m.pt`**.
+
+Lock ini artinya Phase 2 tidak membuka architecture search baru — hanya melakukan hyperparameter tuning pada satu model yang sudah dipilih.
 
 Bukti resmi:
-
 - [phase1b_top3.csv](phase1b_top3.csv)
 - [locked_setup.yaml](locked_setup.yaml)
 
-Lock ini artinya Phase 2 **nggak** buka architecture search baru. Phase 2 cuma nge-tune satu model yang udah dipilih di Phase 1B.
-
 ## 5. Keputusan akhir Phase 1
 
-Phase 1 berakhir dengan dua keputusan yang jelas:
+Phase 1 menghasilkan dua keputusan yang dibawa ke fase selanjutnya:
 
-1. pipeline final: **`one-stage`**
-2. model final untuk tuning: **`yolo11m.pt`**
+1. **Pipeline: `one-stage`** — two-stage gagal menunjukkan keunggulan, bahkan di kondisi ideal (GT crops)
+2. **Model: `yolo11m.pt`** — menang tipis tapi konsisten, dan menunjukkan bahwa bottleneck bukan di arsitektur
 
 ## 6. Langkah berikutnya
 
-Setelah model dikunci, eksperimen lanjut ke Phase 2. Buka [outputs/phase2/phase2_summary.md](../phase2/phase2_summary.md) untuk melihat apakah tuning memberi perbaikan nyata atau tidak.
+Setelah pipeline dan model di-lock, eksperimen lanjut ke Phase 2 untuk menjawab pertanyaan: apakah tuning hyperparameter bisa mendorong performa melewati ceiling yang terlihat di Phase 1? Buka [phase2_summary.md](../phase2/phase2_summary.md).

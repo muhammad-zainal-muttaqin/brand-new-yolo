@@ -1,87 +1,102 @@
 # Error Analysis
 
-Dokumen ini merangkum pola error utama pada run final `p3_final_yolo11m_640_s42_e60p15m60`. Untuk skor test-set resminya, buka [outputs/phase3/final_evaluation.md](final_evaluation.md). Untuk daftar gambar terberat secara mentah, buka [outputs/phase3/error_stratification.csv](error_stratification.csv).
+Dokumen ini menganalisis pola error pada run final `p3_final_yolo11m_640_s42_e60p15m60`, berdasarkan evaluasi terhadap 20 image tersulit di test set. Tujuannya bukan sekadar menyebutkan angka, tapi memahami *kenapa* model gagal di kasus-kasus tertentu dan apa implikasinya bagi iterasi selanjutnya.
 
-## Sumber utama
+Untuk skor test-set resmi dan metrik per kelas, lihat [final_evaluation.md](final_evaluation.md). Data mentah stratifikasi error ada di [error_stratification.csv](error_stratification.csv).
 
-Dokumen ini ditulis dari artefak berikut:
+## Sumber data
 
-- [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json](p3_final_yolo11m_640_s42_e60p15m60_eval.json)
-- [outputs/phase3/threshold_sweep.csv](threshold_sweep.csv)
-- [outputs/phase3/error_stratification.csv](error_stratification.csv)
-- [outputs/phase3/confusion_matrix.csv](confusion_matrix.csv)
+- [p3_final_yolo11m_640_s42_e60p15m60_eval.json](p3_final_yolo11m_640_s42_e60p15m60_eval.json) — metrik per kelas
+- [threshold_sweep.csv](threshold_sweep.csv) — hasil sweep confidence
+- [error_stratification.csv](error_stratification.csv) — stratifikasi 20 image tersulit
+- [confusion_matrix.csv](confusion_matrix.csv) — matriks konfusi (catatan: matriks ini berisi nol karena pipeline evaluasi tidak mempopulasikan nilainya; analisis confusion di dokumen ini bertumpu pada stratifikasi per-image)
 
 ## 1. Ringkasan cepat
 
-- optimized confidence threshold: **`0.1`**
-- confusion `B2/B3` di eval JSON: **`None`**
-- confusion `B3/B4` di eval JSON: **`None`**
-- all classes `AP50 >= 0.70`: **False**
+| Parameter | Nilai |
+|---|---|
+| Optimized confidence threshold | `0.1` |
+| Confusion `B2/B3` (eval JSON) | `None` (tidak diisi pipeline) |
+| Confusion `B3/B4` (eval JSON) | `None` (tidak diisi pipeline) |
+| All classes `AP50 >= 0.70` | **False** |
 
-Catatan penting: file eval JSON final tidak memuat confusion numerik `B2/B3` dan `B3/B4` sebagai angka agregat. Karena itu, pembacaan error praktis di dokumen ini bertumpu pada [outputs/phase3/error_stratification.csv](error_stratification.csv).
+Karena eval JSON tidak menyediakan confusion numerik antar kelas secara agregat, seluruh analisis error di dokumen ini bertumpu pada [error_stratification.csv](error_stratification.csv) — yang meng-categorize setiap image berdasarkan pola error yang diamati.
 
 ## 2. Pola error yang paling sering muncul
 
-Berdasarkan [outputs/phase3/error_stratification.csv](error_stratification.csv), kategori error dominan adalah:
+Dari 20 image dengan error score tertinggi, berikut distribusi kategori error:
 
-- `false_positive`: **20** image
+- `false_positive`: **20** image — muncul di hampir setiap kasus sulit
 - `B2_B3_confusion`: **13** image
 - `B4_missed`: **11** image
 - `B3_B4_confusion`: **10** image
 
-Urutannya memberi pesan yang cukup jelas:
+![Distribusi kategori error pada 20 image tersulit](figures/p3_error_distribution.png)
 
-1. model masih terlalu sering membuat deteksi berlebih
-2. boundary `B2/B3` tetap bermasalah
-3. `B4` masih sering hilang
-4. kedekatan visual `B3/B4` juga belum benar-benar teratasi
+Perhatikan bahwa satu image bisa punya beberapa kategori error sekaligus — itulah sebabnya total kategori melebihi 20. Misalnya, satu image bisa bersamaan mengalami `B2_B3_confusion`, `B4_missed`, dan `false_positive`.
 
-## 3. Contoh gambar yang paling berat
+Ada narasi yang koheren dari distribusi ini: **error terbesar terjadi pada kelas-kelas yang berdekatan secara ordinal**. B2↔B3 dan B3↔B4 sama-sama berada di zona transisi visual yang halus. Sementara false positive mendominasi karena scene sawit secara inheren padat — dalam satu frame bisa ada puluhan buah, dan model cenderung over-predict di area dense.
 
-Baris teratas pada [outputs/phase3/error_stratification.csv](error_stratification.csv) menunjukkan beberapa contoh kasus yang paling sulit:
+## 3. Image tersulit
 
-- `/workspace/Dataset-Sawit-YOLO/images/test/DAMIMAS_A21B_0838_5.jpg`
-- `/workspace/Dataset-Sawit-YOLO/images/test/DAMIMAS_A21B_0075_2.jpg`
-- `/workspace/Dataset-Sawit-YOLO/images/test/DAMIMAS_A21B_0292_2.jpg`
-- `/workspace/Dataset-Sawit-YOLO/images/test/DAMIMAS_A21B_0107_2.jpg`
-- `/workspace/Dataset-Sawit-YOLO/images/test/DAMIMAS_A21B_0382_3.jpg`
+![Top-20 image tersulit by error score](figures/p3_error_by_image_score.png)
 
-File ini layak dibuka lebih dulu untuk audit visual manual.
+Beberapa image tersulit dan apa yang membuat mereka problematik:
 
-## 4. Cara membaca error ini
+| Image | Error Score | TP | Confusion | Missed | FP | Kategori |
+|---|---:|---:|---:|---:|---:|---|
+| `DAMIMAS_A21B_0838_5.jpg` | 21 | 0 | 0 | 6 | 9 | B4 missed, false positive |
+| `DAMIMAS_A21B_0075_2.jpg` | 19 | 1 | 6 | 0 | 7 | B2/B3 + B3/B4 confusion |
+| `DAMIMAS_A21B_0075_4.jpg` | 19 | 3 | 5 | 1 | 7 | B2/B3 + B3/B4 confusion |
+| `DAMIMAS_A21B_0292_2.jpg` | 19 | 4 | 1 | 2 | 13 | B2/B3 + B4 missed + FP |
+| `DAMIMAS_A21B_0107_2.jpg` | 17 | 1 | 4 | 2 | 5 | Semua kategori error |
 
-### `false_positive`
+Pola yang menarik: image-image dari tandan yang sama (prefix `0075`, `0838`, `0107`) cenderung muncul berulang di daftar tersulit. Ini mengindikasikan bahwa **kesulitan bukan hanya per-objek tapi per-scene** — beberapa tandan memang secara inheren lebih sulit karena komposisi pencahayaan, sudut pandang, atau densitas buah yang ekstrem.
 
-Ini adalah error paling dominan. Artinya model masih menghasilkan deteksi yang tidak didukung ground truth. Implikasinya bisa datang dari:
+Image `DAMIMAS_A21B_0838_5.jpg` layak disorot: error score-nya tertinggi (21) dengan nol true positive dan 6 ground truth yang seluruhnya missed. Ini kemungkinan scene di mana semua objek adalah B4 kecil yang tersembunyi, dan model justru memproduksi 9 false positive — artinya model "melihat sesuatu" di area itu tapi salah total dalam mengidentifikasinya.
 
-- threshold operasi yang terlalu longgar
-- kepadatan objek yang membuat model terlalu agresif
-- bbox atau label yang belum cukup bersih pada area sulit
+## 4. Anatomi tiap kategori error
 
-### `B2_B3_confusion`
+### `false_positive` — muncul di 20/20 image
 
-Ini menguatkan temuan dari fase-fase sebelumnya: `B2` dan `B3` masih sulit dipisahkan, bahkan setelah Phase 2 tuning selesai.
+Ini error paling universal. Setiap image sulit punya masalah ini, yang menandakan bahwa ini bukan kasus edge tapi perilaku sistemik. Penyebab utama:
 
-### `B4_missed`
+- **Densitas objek tinggi** — tandan sawit bisa berisi puluhan buah dalam satu frame. Model yang agresif (confidence rendah) akan memproduksi banyak deteksi di area dense, sebagian besar tidak match dengan ground truth.
+- **Background clutter** — daun, tangkai, dan bagian tandan lain yang secara tekstural mirip buah bisa memicu false detection.
+- **Annotasi konservatif** — jika annotator hanya melabel buah yang jelas terlihat, sementara model mendeteksi buah yang partially occluded, ini tercatat sebagai false positive meskipun secara teknis model "benar".
 
-Ini sejalan dengan fakta bahwa `B4` adalah kelas paling kecil dan paling sulit. Error ini lebih dekat ke masalah small-object recall daripada sekadar thresholding biasa.
+### `B2_B3_confusion` — 13 image
 
-### `B3_B4_confusion`
+Ini adalah confusion paling dominan, dan ini sudah diprediksi sejak Phase 0. B2 dan B3 berada di zona transisi warna: B2 mulai berubah dari hitam ke merah, sementara B3 masih full hitam. Dalam kondisi pencahayaan tertentu, perbedaan keduanya bisa sangat subtle — terutama saat cahaya matahari membuat B3 tampak agak kemerahan, atau saat shadow membuat B2 tampak lebih gelap dari seharusnya.
 
-Selain `B2/B3`, kelas tetangga lain juga masih saling tertukar. Ini menunjukkan bahwa task 4-kelas memang punya boundary visual yang rapat.
+Ini bukan masalah yang bisa diselesaikan hanya dengan tuning hyperparameter. Pendekatan yang lebih promising: augmentasi warna yang agresif pada zona transisi, atau feature extraction yang lebih fokus pada tekstur permukaan (duri vs halus) ketimbang warna.
+
+### `B4_missed` — 11 image
+
+B4 adalah kelas terkecil secara fisik dan paling tersembunyi dalam tandan. Median bounding box area B4 hanya 0.0072 (normalized) — hampir separuh dari B1. Di resolusi 640, banyak B4 yang hanya menempati beberapa piksel, membuat deteksi sangat sulit.
+
+Menariknya, threshold sweep menunjukkan B4 recall naik dari 0.38 (default) ke 0.54 di `conf=0.1`. Artinya model sebenarnya menghasilkan prediksi B4 yang benar, tapi dengan confidence rendah. Ini membuka dua jalur perbaikan: (1) meningkatkan resolusi input agar B4 punya lebih banyak pixel, atau (2) menambah training data B4 supaya model lebih "yakin" saat mendeteksinya.
+
+### `B3_B4_confusion` — 10 image
+
+Selain B2/B3, boundary B3/B4 juga bermasalah. Keduanya sama-sama gelap/hitam, dan perbedaan utamanya ada di ukuran dan posisi dalam tandan — fitur spasial yang tidak selalu konsisten antar scene. Ini memperkuat argumen bahwa task 4-kelas ini memang punya boundary visual yang sangat rapat, terutama di tiga kelas tengah-bawah (B2, B3, B4).
 
 ## 5. Hubungan dengan threshold sweep
 
-Data pada [outputs/phase3/threshold_sweep.csv](threshold_sweep.csv) menunjukkan kandidat threshold terbaik pada artefak ini ada di `conf=0.1`.
+Data [threshold_sweep.csv](threshold_sweep.csv) menunjukkan bahwa `conf=0.1` adalah operating point terbaik — di titik ini, precision dan recall seimbang di ~0.70 dan B4 recall mencapai 0.54. Menaikkan threshold ke 0.3+ mulai mengorbankan recall B4 secara signifikan.
 
-Namun angka threshold sweep dipakai untuk memilih **operating point**. Ia tidak menggantikan skor resmi run final pada [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json](p3_final_yolo11m_640_s42_e60p15m60_eval.json).
+Namun perlu ditekankan: threshold sweep memilih **operating point untuk deployment**, bukan menggantikan skor resmi yang dihitung pada `conf=0.001`. Skor di eval JSON tetap menjadi angka referensi untuk perbandingan antar eksperimen.
 
-## 6. Kesimpulan praktis
+## 6. Kesimpulan dan arah perbaikan
 
-Analisis error final ini mengulang tiga pesan yang sama dari seluruh repo:
+Analisis error ini mengonsolidasikan temuan yang sudah terlihat sejak fase-fase awal ke dalam gambaran yang lebih jelas:
 
-1. `false_positive` masih tinggi
-2. confusion `B2/B3` belum selesai
-3. `B4` recall masih lemah
+1. **False positive adalah masalah sistemik**, bukan edge case. Ini perlu didekati dari sisi post-processing (NMS tuning, confidence calibration) dan mungkin juga dari sisi arsitektur (deformable attention untuk menangani scene dense).
 
-Jika repo ini dibuka lagi untuk eksperimen lanjutan, tiga slice itu harus jadi prioritas pertama.
+2. **Confusion B2/B3 adalah bottleneck diskriminatif utama**. Kedua kelas ini secara biologis berada di zona transisi yang sama, dan model belum punya fitur yang cukup untuk memisahkannya. Pendekatan berbasis warna saja tidak cukup — perlu eksplorasi fitur tekstural dan spatial.
+
+3. **B4 recall bisa ditingkatkan** tanpa perubahan arsitektur drastis. Threshold sweep menunjukkan sinyal ada — tinggal diperkuat melalui data augmentation, resolusi lebih tinggi, atau focal attention pada small objects.
+
+4. **Beberapa scene secara inheren sangat sulit** (tandan tertentu muncul berulang di top-20 hardest). Ini bisa menjadi basis untuk hard-example mining di iterasi selanjutnya.
+
+Jika repo ini dilanjutkan ke eksperimen berikutnya, ketiga pola error di atas harus menjadi prioritas pertama — dan keberhasilannya bisa diukur langsung terhadap baseline yang sudah di-establish di sini.

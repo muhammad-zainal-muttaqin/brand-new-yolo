@@ -1,169 +1,183 @@
-# Phase 2 Summary — Tuning Hyperparameter
+# Phase 2 Summary — Hyperparameter Tuning
 
-Ringkasan Phase 2: tuning terkontrol di satu model yang udah dikunci (`yolo11m.pt`), protokolnya dua seed per konfigurasi (kecuali catatan reuse). Alasan pemilihan model ada di [phase1_summary.md](../phase1/phase1_summary.md). Hasil akhir test set dan retrain final di [final_evaluation.md](../phase3/final_evaluation.md) dan [final_report.md](../phase3/final_report.md).
+Phase 2 menguji apakah penyesuaian hyperparameter bisa mendorong performa melewati ceiling yang terlihat di Phase 1, atau apakah bottleneck sebenarnya bukan di situ. Tuning dilakukan secara sequential pada satu model yang sudah di-lock (`yolo11m.pt`), mencakup loss function, learning rate, batch size, dan augmentation profile.
+
+Alasan pemilihan model ada di [phase1_summary.md](../phase1/phase1_summary.md). Hasil akhir retrain final di [final_evaluation.md](../phase3/final_evaluation.md) dan [final_report.md](../phase3/final_report.md).
 
 ---
 
 ## Ringkasan eksekutif
 
-Phase 2 ngeksplor variasi **strategi loss**, **learning rate**, **batch size**, dan **profil augmentasi** di setup yang selain itu sama dengan baseline Phase 1B. Beberapa cabang sweep **disingkat atau dilewati** soalnya Step 0a nunjukin perilaku plateau — metrik identik antar varian loss.
+Secara singkat: **tuning tidak menghasilkan perbaikan yang meyakinkan**. Kombinasi terbaik (`lr0=0.0005`, `batch=16`, `aug=medium`) hanya memberikan gain ~0.5% mAP50 dibanding baseline Phase 1B — terlalu kecil untuk dijadikan alasan mengganti recipe yang sudah stabil. Keputusan akhir: **revert ke baseline Phase 1B**.
 
-Secara agregat, kombinasi terbaik dalam sweep (kayak `lr0=0.0005` + `batch=16` + `aug=medium`) kasih **kenaikan kecil** di mean mAP50, tapi kenaikan itu **nggak cukup kuat** buat ganti resep baseline yang udah stabil. Makanya kita catat **`reverted_to_phase1_baseline = True`**: konfigurasi buat Phase 3 ngikutin **baseline Phase 1B** (`lr0=0.001`, `batch=16`, `imbalance=none`, `ordinal=standard`, `aug=medium`), sesuai [final_hparams.yaml](final_hparams.yaml).
+Konfigurasi yang dibawa ke Phase 3: `lr0=0.001`, `batch=16`, `imbalance=none`, `ordinal=standard`, `aug=medium`, sesuai [final_hparams.yaml](final_hparams.yaml).
 
-Run konfirmasi dengan resep terkunci:
+Confirmation run pada recipe terkunci menghasilkan:
 
-- precision: **0.5066**
-- recall: **0.6042**
-- mAP50: **0.5390**
-- mAP50-95: **0.2594**
-- split: **val**
-- gate `all_classes_ge_70_ap50`: **False**
+| Metrik | Nilai |
+|---|---:|
+| Precision | 0.5066 |
+| Recall | 0.6042 |
+| mAP50 | 0.5390 |
+| mAP50-95 | 0.2594 |
+| B4 recall | 0.3736 |
+| Gate `all_classes_ge_70_ap50` | **False** |
 
-Kelas **B2** dan **B4** tetep paling lemah, konsisten sama bottleneck yang muncul di Phase 1.
+Kelas B2 dan B4 tetap menjadi bottleneck, konsisten dengan temuan Phase 1.
 
 ---
 
 ## 1. Tujuan dan cakupan
 
-| Aspek | Isi |
-|--------|-----|
-| Model | `yolo11m.pt` aja (nggak ada architecture search) |
+| Aspek | Detail |
+|---|---|
+| Model | `yolo11m.pt` saja (tidak ada architecture search) |
 | Input lock | [locked_setup.yaml](../phase1/locked_setup.yaml) |
-| Metrik fokus | mAP50, mAP50-95, plus recall B4 buat lihat kelas minor |
-| Output resmi | [tuning_results.csv](tuning_results.csv), [final_hparams.yaml](final_hparams.yaml), eval konfirmasi JSON |
+| Metrik fokus | mAP50, mAP50-95, B4 recall |
+| Output resmi | [tuning_results.csv](tuning_results.csv), [final_hparams.yaml](final_hparams.yaml), confirmation JSON |
 
-Phase 2 **bukan** pengulangan benchmark multi-model Phase 1B — tujuannya ngetes apakah penyesuaian hparams bisa kasih lompatan jelas tanpa ngorbankan stabilitas resep.
+Phase 2 bukan pengulangan benchmark multi-model — tujuannya spesifik: menguji apakah hyperparameter adjustment bisa memberikan gain yang signifikan pada arsitektur yang sudah dipilih.
 
 ---
 
 ## 2. Sumber data
 
-File yang dipakai buat laporan ini:
-
-- [imbalance_sweep.csv](imbalance_sweep.csv)
-- [ordinal_sweep.csv](ordinal_sweep.csv) — nyatet langkah yang dilewati
-- [lr_sweep.csv](lr_sweep.csv)
-- [batch_sweep.csv](batch_sweep.csv)
-- [aug_sweep.csv](aug_sweep.csv)
-- [tuning_results.csv](tuning_results.csv)
-- [p2confirm_yolo11m_640_s3_e30p10m30_eval.json](p2confirm_yolo11m_640_s3_e30p10m30_eval.json)
-- [final_hparams.yaml](final_hparams.yaml)
+- [imbalance_sweep.csv](imbalance_sweep.csv) — loss function sweep
+- [ordinal_sweep.csv](ordinal_sweep.csv) — mencatat step yang dilewati
+- [lr_sweep.csv](lr_sweep.csv) — learning rate sweep
+- [batch_sweep.csv](batch_sweep.csv) — batch size sweep
+- [aug_sweep.csv](aug_sweep.csv) — augmentation profile sweep
+- [tuning_results.csv](tuning_results.csv) — ringkasan keputusan tuning
+- [p2confirm_yolo11m_640_s3_e30p10m30_eval.json](p2confirm_yolo11m_640_s3_e30p10m30_eval.json) — confirmation run
+- [final_hparams.yaml](final_hparams.yaml) — konfigurasi final
 
 ---
 
-## 3. Protokol singkat
+## 3. Protokol
 
-- **Resolusi**: `imgsz = 640`
-- **Pelatihan**: `epochs = 30`, `patience = 10`, `min_epochs = 30` (selaras dengan eksperimen Phase 1B)
-- **Agregasi**: untuk setiap opsi sweep, metrik dihitung sebagai **rata-rata dua run** (seed 1 dan 2), kecuali baris yang secara eksplisit berstatus **reused reference** dari Phase 1B
+- **Resolusi**: `imgsz=640` (locked dari Phase 0)
+- **Training**: `epochs=30`, `patience=10`, `min_epochs=30` (selaras Phase 1B)
+- **Agregasi**: setiap opsi sweep dihitung sebagai mean dari 2 seed, kecuali yang di-reuse dari Phase 1B
 
-Baseline numerik Phase 1B untuk `yolo11m` pada dua seed referensi: mean mAP50 **0.5298**, mean mAP50-95 **0.2570**, mean B4 recall **0.3673** (sumber: baris `lr001_phase1_reference` di `lr_sweep.csv`).
+Baseline Phase 1B untuk `yolo11m`: mean mAP50 **0.5298**, mean mAP50-95 **0.2570**, mean B4 recall **0.3673**.
 
 ---
 
-## 4. Override operasional dan ruang pencarian
+## 4. Override operasional
 
-Kita terapin **override operasional** biar compute nggak kebuang di cabang yang udah ketahuan datar atau redundan. Intinya:
+Beberapa cabang sweep dipangkas karena bukti awal sudah cukup jelas:
 
-1. **Step 0a (imbalance / loss)** — Tiga opsi (`none`, `class_weighted`, `focal15`) hasilin **metrik identik** di agregat dua seed. Perilaku ini plateau; setup loss selanjutnya **dikunci** ke `imbalance=none` dan `ordinal=standard`.
-2. **Step 0b (ordinal)** — **Nggak dijalankan**; statusnya di [ordinal_sweep.csv](ordinal_sweep.csv) sama kayak alasan Step 0a.
-3. **Step 1 (LR)** — Kandidat `lr0=0.001` **nggak dilatih ulang** di Phase 2; nilainya **direuse** dari baseline Phase 1B (`status=reused_reference` di `lr_sweep.csv`).
-4. **Step 2 (batch)** — `batch=32` **dilewati**; cuma bandingin **8 vs 16**.
-5. **Step 3 (augmentasi)** — Profil `heavy` **dilewati**; cuma bandingin **light vs medium**.
+1. **Step 0a (loss function)** — Tiga strategi (`none`, `class_weighted`, `focal15`) menghasilkan **metrik yang identik**. Loss dikunci ke `none`.
+2. **Step 0b (ordinal)** — Dilewati karena alasan yang sama dengan Step 0a.
+3. **Step 1 (LR)** — Baseline `lr0=0.001` di-reuse dari Phase 1B, tidak dilatih ulang.
+4. **Step 2 (batch)** — Hanya `8` vs `16`; `batch=32` dilewati.
+5. **Step 3 (augmentasi)** — Hanya `light` vs `medium`; `heavy` dilewati.
 
-Alasan teknis lengkap ada di [GUIDE.md](../../GUIDE.md). Override ini ngurangin cakupan laporan dibanding “sweep penuh”, tapi **nggak ngubah fakta** bahwa data yang ada udah cukup buat keputusan revert baseline.
+Override ini mengurangi jumlah run tanpa mengorbankan kesimpulan — data yang ada sudah cukup untuk memutuskan revert.
 
 ---
 
 ## 5. Hasil per langkah sweep
 
-Angka di bawah adalah **mean** dari dua seed (atau referensi Phase 1B buat `lr0=0.001`), dibulatkan ke empat desimal biar konsisten sama artefak CSV.
-
-### 5.1 Step 0a — Imbalance handling
+### 5.1 Step 0a — Loss function
 
 Sumber: [imbalance_sweep.csv](imbalance_sweep.csv).
 
-| Opsi | Mean mAP50 | Mean mAP50-95 | Mean B4 recall |
-|------|-----------:|---------------:|---------------:|
+| Strategi | Mean mAP50 | Mean mAP50-95 | Mean B4 Recall |
+|---|---:|---:|---:|
 | `none` | 0.5298 | 0.2570 | 0.3673 |
 | `class_weighted` | 0.5298 | 0.2570 | 0.3673 |
 | `focal15` | 0.5298 | 0.2570 | 0.3673 |
 
-Nggak ada pemisahan sinyal antar strategi loss di setup ini. Ngelanjutin eksplorasi loss yang lebih eksotis **nggak masuk akal** berdasarkan bukti numerik yang ada.
+Ini adalah temuan yang paling informatif di Phase 2, meskipun pada pandangan pertama terlihat "kosong". Ketiga strategi loss menghasilkan angka yang persis sama — bukan mirip, tapi **identik** sampai 4 desimal.
+
+Apa artinya? Loss function bukan bottleneck. Model sudah mengekstrak informasi dari data seefisien yang bisa dilakukan pada arsitektur dan resolusi ini. Mengubah cara loss di-weight (class_weighted) atau mengubah bentuk loss (focal) tidak mengubah apa yang model pelajari. Ini kuat mengindikasikan bahwa **ceiling performa ditentukan oleh data dan task difficulty, bukan training objective**.
 
 ### 5.2 Step 1 — Learning rate
 
 Sumber: [lr_sweep.csv](lr_sweep.csv).
 
-| LR | Peran | Mean mAP50 | Mean mAP50-95 | Mean B4 recall |
-|----|--------|-----------:|---------------:|---------------:|
-| `0.001` | Reuse Phase 1B | 0.5298 | 0.2570 | 0.3673 |
+| LR | Source | Mean mAP50 | Mean mAP50-95 | Mean B4 Recall |
+|---|---|---:|---:|---:|
+| `0.001` | Phase 1B (reuse) | 0.5298 | 0.2570 | 0.3673 |
 | `0.0005` | Sweep Phase 2 | 0.5350 | 0.2577 | 0.3637 |
 | `0.002` | Sweep Phase 2 | 0.5338 | 0.2587 | 0.3337 |
 
-`0.0005` dan `0.002` sedikit ng geser mAP50 dan mAP50-95, tapi **nggak bikin lompatan besar**. `0.002` nurunin B4 recall jadi **0.3337**, yang merugikan kelas yang udah sulit.
+![Learning rate sweep](figures/p2_lr_sweep.png)
+
+`lr0=0.0005` memberikan gain kecil di mAP50 (+0.52%) tapi B4 recall turun sedikit. `lr0=0.002` menaikkan mAP50-95 tapi **menjatuhkan B4 recall ke 0.334** — penurunan yang signifikan untuk kelas yang sudah paling sulit.
+
+Pola ini menunjukkan trade-off yang tidak menguntungkan: LR yang lebih tinggi membuat model lebih agresif secara overall tapi lebih buruk di kelas sulit. LR yang lebih rendah sedikit lebih baik secara agregat tapi gain-nya marginal dan tidak konsisten antar seed.
 
 ### 5.3 Step 2 — Batch size
 
 Sumber: [batch_sweep.csv](batch_sweep.csv).
 
-| Batch | Mean mAP50 | Mean mAP50-95 | Mean B4 recall |
-|------:|-----------:|---------------:|---------------:|
+| Batch | Mean mAP50 | Mean mAP50-95 | Mean B4 Recall |
+|---:|---:|---:|---:|
 | 8 | 0.5321 | 0.2574 | 0.3791 |
 | 16 | 0.5350 | 0.2577 | 0.3637 |
 
-Trade-off jelas: **batch 8** sedikit ngebantu B4 recall, **batch 16** sedikit unggul di mAP50 agregat. Perbedaan mAP50-95 di antara keduanya **kecil**.
-
-### 5.4 Step 3 — Profil augmentasi
+### 5.4 Step 3 — Augmentation profile
 
 Sumber: [aug_sweep.csv](aug_sweep.csv).
 
-| Profil | Mean mAP50 | Mean mAP50-95 | Mean B4 recall |
-|--------|-----------:|---------------:|---------------:|
+| Profile | Mean mAP50 | Mean mAP50-95 | Mean B4 Recall |
+|---|---:|---:|---:|
 | `light` | 0.5256 | 0.2512 | 0.3827 |
 | `medium` | 0.5350 | 0.2577 | 0.3637 |
 
-`medium` unggul di metrik utama agregat; `light` sedikit ngebantu B4 tapi **nurunin** mAP50-95 secara berarti dibanding `medium`.
+![Batch size dan augmentation sweep](figures/p2_batch_aug_sweep.png)
+
+Ada pola menarik yang berulang di Step 2 dan 3: konfigurasi yang lebih "ringan" (batch kecil, augmentasi ringan) cenderung lebih baik untuk B4 recall, sementara konfigurasi "standar" (batch 16, medium aug) lebih baik untuk metrik agregat. Ini masuk akal — batch lebih kecil dan augmentasi lebih ringan memberi model lebih banyak kesempatan untuk melihat instance B4 yang sedikit secara efektif, tapi mengorbankan generalisasi di kelas lain.
+
+Namun perbedaannya tetap kecil di semua metrik — tidak ada konfigurasi yang memberikan breakthrough.
 
 ---
 
-## 6. Agregat keputusan tuning
+## 6. Keputusan tuning
 
-Baris tunggal di [tuning_results.csv](tuning_results.csv) merangkum perbandingan baseline versus kandidat terbaik dalam sweep:
+![Phase 2 tuning — progression mAP50](figures/p2_tuning_summary.png)
+
+Dari [tuning_results.csv](tuning_results.csv):
 
 | Field | Nilai |
-|--------|--------|
-| `baseline_mean_map50` | 0.5298 |
-| `tuned_mean_map50` (kandidat terbaik dalam sweep) | 0.5350 |
-| `mean_map50` (nilai agregat yang dicatat untuk baris final) | 0.5329 |
-| `mean_map50_95` | 0.2578 |
-| `reverted_to_phase1_baseline` | **True** |
-| `final_source` | `phase1_baseline_reverted` |
+|---|---|
+| Baseline mean mAP50 | 0.5298 |
+| Best tuned mean mAP50 | 0.5350 |
+| Final mean mAP50 | 0.5329 |
+| Final mean mAP50-95 | 0.2578 |
+| Reverted to Phase 1 baseline | **True** |
+| Final source | `phase1_baseline_reverted` |
 
-Meski **0.5350** sedikit di atas **0.5298**, selisihnya **kecil banget** buat ngunci resep baru sebagai pengganti baseline Phase 1B — apalagi kalo udah ngimbangin stabilitas lintas fase dan trade-off di B4 di beberapa cabang.
-
----
-
-## 7. Konfigurasi final yang dikunci
-
-Resep yang ditulis ke [final_hparams.yaml](final_hparams.yaml) dan dibawa ke Phase 3:
-
-- **model:** `yolo11m.pt`
-- **lr0:** `0.001`
-- **batch:** `16`
-- **imbalance_strategy:** `none`
-- **ordinal_strategy:** `standard`
-- **aug_profile:** `medium`
-- **imgsz:** `640` (dengan `epochs` / `patience` / `min_epochs` sebagaimana di file)
+Selisih antara baseline (0.5298) dan kandidat terbaik (0.5350) hanya **0.52%** — di bawah threshold yang bisa dianggap meaningful, apalagi dengan variance antar seed yang masih overlap. Keputusan revert bukan karena tuning "gagal" dalam artian error, tapi karena **gain-nya tidak cukup untuk membenarkan perubahan recipe** yang sudah stabil dan reproducible.
 
 ---
 
-## 8. Verifikasi: confirm run Phase 2
+## 7. Konfigurasi final yang di-lock
 
-Evaluasi formal pada run **`p2confirm_yolo11m_640_s3_e30p10m30`** ([p2confirm_yolo11m_640_s3_e30p10m30_eval.json](p2confirm_yolo11m_640_s3_e30p10m30_eval.json)), split **val**:
+Recipe yang ditulis ke [final_hparams.yaml](final_hparams.yaml) untuk Phase 3:
+
+| Parameter | Nilai |
+|---|---|
+| Model | `yolo11m.pt` |
+| lr0 | `0.001` |
+| Batch | `16` |
+| Imbalance strategy | `none` |
+| Ordinal strategy | `standard` |
+| Aug profile | `medium` |
+| Image size | `640` |
+
+---
+
+## 8. Verification: confirmation run
+
+Run **`p2confirm_yolo11m_640_s3_e30p10m30`** menggunakan seed ke-3 (bukan seed 1 atau 2 yang dipakai di sweep) untuk memvalidasi bahwa recipe terkunci menghasilkan performa yang konsisten.
+
+Evaluasi pada split **val** ([p2confirm_yolo11m_640_s3_e30p10m30_eval.json](p2confirm_yolo11m_640_s3_e30p10m30_eval.json)):
 
 | Metrik | Nilai |
-|--------|------:|
+|---|---:|
 | Precision | 0.5066 |
 | Recall | 0.6042 |
 | mAP50 | 0.5390 |
@@ -171,19 +185,26 @@ Evaluasi formal pada run **`p2confirm_yolo11m_640_s3_e30p10m30`** ([p2confirm_yo
 | B4 recall | 0.3736 |
 | `all_classes_ge_70_ap50` | **False** |
 
-**Per kelas (mAP50):** B1 **0.8050**, B2 **0.4042**, B3 **0.5716**, B4 **0.3753**. Pola ini makin nguatin bahwa tuning hparams di model yang sama **nggak ngehapus** kesenjangan antar kelas yang udah mapan sejak benchmark arsitektur.
+Per kelas (mAP50): B1 **0.8050**, B2 **0.4042**, B3 **0.5716**, B4 **0.3753**.
+
+Hasil ini mengonfirmasi dua hal: (1) recipe terkunci menghasilkan performa yang sesuai ekspektasi di seed baru, dan (2) gap antar kelas — B1 jauh di atas, B4 jauh di bawah — bukan artefak seed tertentu tapi memang karakteristik task ini.
 
 ---
 
 ## 9. Kesimpulan
 
-1. **Varian loss di Step 0a** nggak ngasih variasi terukur; baseline loss tetep `none` / `standard`.
-2. **LR, batch, dan aug** nunjukin **penyesuaian marjinal**; nggak ada kombinasi yang ngasih bukti kuat buat ganti resep Phase 1B.
-3. **Keputusan revert** ngecerminin preferensi buat **baseline stabil** dibanding kenaikan kecil yang nggak konsisten sama tujuan robustness lintas fase.
-4. **Confirm run** memvalidasi bahwa resep terkunci tetep di rentang performa yang diharapkan, tanpa nutup gap kelas lemah.
+Phase 2 memberikan beberapa insight yang penting meskipun tidak menghasilkan perubahan recipe:
+
+1. **Loss function bukan bottleneck.** Tiga strategi menghasilkan metrik identik — model sudah mengekstrak sinyal seefisien yang bisa dari data yang ada.
+
+2. **LR, batch, dan augmentation memberikan trade-off marginal**, bukan perbaikan. Setiap gain di satu metrik diikuti penurunan di metrik lain, dan semua dalam margin of error antar seed.
+
+3. **Keputusan revert ke baseline adalah pilihan stabilitas.** Bukan karena tuning gagal, tapi karena gain < 1% tidak cukup kuat untuk membenarkan perubahan recipe di pipeline yang harus reproducible.
+
+4. **Pesan terbesar: bottleneck ada di task difficulty dan data quality.** Sweep hyperparameter di ruang standar sudah saturated. Peningkatan berikutnya harus datang dari pendekatan yang lebih fundamental — domain-specific augmentation, perubahan arsitektur yang targeted, atau peningkatan kualitas/kuantitas data.
 
 ---
 
 ## 10. Langkah berikutnya
 
-Lanjut ke Phase 3 buat retrain final, evaluasi test set, dan laporan penutup: [final_report.md](../phase3/final_report.md).
+Phase 2 menutup pertanyaan "apakah tuning bisa membantu?" dengan jawaban "tidak secara signifikan". Eksperimen lanjut ke Phase 3 untuk retrain final dengan budget lebih besar dan evaluasi di test set. Buka [final_report.md](../phase3/final_report.md).

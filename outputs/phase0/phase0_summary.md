@@ -1,36 +1,34 @@
 # Phase 0 Summary
 
-Ringkasan keputusan Phase 0: validasi dataset, pilihan resolusi kerja, dan pembacaan learning curve. Audit dataset mentah ada di [eda_report.md](eda_report.md), keputusan pipeline di [phase1_summary.md](../phase1/phase1_summary.md).
+Phase 0 menjawab tiga pertanyaan fundamental sebelum training dimulai: apakah dataset cukup bersih, resolusi kerja mana yang paling masuk akal, dan apakah volume data yang ada sudah cukup atau masih bisa ditambah.
 
-## Sumber utama
+Audit dataset mentah ada di [eda_report.md](eda_report.md). Untuk keputusan fase selanjutnya, lanjut ke [phase1_summary.md](../phase1/phase1_summary.md).
 
-Artefak yang dipakai:
+## Sumber data
 
-- [dataset_audit.json](dataset_audit.json)
-- [eda_report.md](eda_report.md)
-- [resolution_sweep.csv](resolution_sweep.csv)
-- [learning_curve.csv](learning_curve.csv)
-- [locked_setup.yaml](../phase1/locked_setup.yaml)
+- [dataset_audit.json](dataset_audit.json) — hasil audit otomatis
+- [eda_report.md](eda_report.md) — EDA lengkap
+- [resolution_sweep.csv](resolution_sweep.csv) — perbandingan resolusi 640 vs 1024
+- [learning_curve.csv](learning_curve.csv) — kurva belajar pada fraksi data 25%-100%
+- [locked_setup.yaml](../phase1/locked_setup.yaml) — lock file yang membawa keputusan Phase 0 ke fase selanjutnya
 
 ## 1. Validasi dataset
 
-Berdasarkan [dataset_audit.json](dataset_audit.json), status dataset **ok**.
+| Item | Nilai |
+|---|---|
+| Total images | **3,992** |
+| Total labels | **3,992** |
+| Total instances | **17,987** |
+| Split | train **2,764** / val **604** / test **624** |
+| Empty-label images | **83** |
+| Invalid issues | **0** |
+| Group overlap antar split | **0** |
 
-Ringkasan:
-
-- total images: **3992**
-- total labels: **3992**
-- total instances: **17987**
-- split: train **2764**, val **604**, test **624**
-- empty-label images: **83**
-- invalid label issues setelah self-healing: **0**
-- group overlap antar split: **0**
-
-Dataset cukup bersih buat baseline E0, jadi Phase 0 bisa lanjut ke pemilihan resolusi kerja.
+Dataset lolos audit dasar tanpa blocker teknis. Detail distribusi kelas dan geometri bounding box dibahas di [eda_report.md](eda_report.md) — intinya, B3 mendominasi (46%) dan B4 punya ukuran terkecil, dua fakta yang akan terus relevan di sepanjang eksperimen.
 
 ## 2. Resolution sweep
 
-Resolution sweep pakai run valid `>=30` epoch aktual dengan `patience=10`, sesuai [resolution_sweep.csv](resolution_sweep.csv).
+Pertanyaan ini penting karena resolusi langsung mempengaruhi dua hal: kemampuan model mendeteksi objek kecil (terutama B4), dan biaya komputasi per run. Kita membandingkan 640 vs 1024 pada model yolo11n dengan 2 seed.
 
 | imgsz | seed | mAP50 | mAP50-95 | precision | recall |
 |---:|---:|---:|---:|---:|---:|
@@ -39,51 +37,49 @@ Resolution sweep pakai run valid `>=30` epoch aktual dengan `patience=10`, sesua
 | 640 | 2 | 0.5245 | 0.2514 | 0.4923 | 0.5838 |
 | 1024 | 2 | 0.5276 | 0.2589 | 0.4952 | 0.6004 |
 
-### Mean per resolution
+**Mean per resolusi:**
+- `640`: mAP50 = 0.5241, mAP50-95 = 0.2526
+- `1024`: mAP50 = 0.5320, mAP50-95 = 0.2580
+- Relative gain 1024 vs 640 pada mAP50-95: **+2.15%**
 
-- `640`: mAP50 **0.5241**, mAP50-95 **0.2526**
-- `1024`: mAP50 **0.5320**, mAP50-95 **0.2580**
-- relative gain `1024` vs `640` pada mAP50-95: **2.15%**
+![Perbandingan resolusi 640 vs 1024](figures/p0_resolution_comparison.png)
 
-### Keputusan resolusi
+Gain 2.15% itu memang ada, tapi konteksnya perlu dilihat: setiap run di 1024 memakan hampir 2.5× lebih banyak VRAM dan waktu training dibanding 640. Dalam pipeline E0 yang menjalankan puluhan run (benchmark 11 arsitektur × 2 seed, tuning sweeps, dsb.), pilihan 1024 akan menggandakan total compute budget tanpa jaminan bahwa gain kecil ini akan bertahan saat arsitektur dan hyperparameter berubah.
 
-Sesuai aturan di [E0.md](../../E0.md), gain `2–5%` nggak otomatis ngunci `1024`. Keputusan akhir tetap harus ngimbangin biaya komputasi.
-
-Karena kenaikan `1024` kecil sementara biaya compute dan inference jauh lebih berat, **resolusi kerja Phase 0 dipilih = `640`**.
-
-Keputusan ini dibawa ke fase berikutnya dan tercermin di [locked_setup.yaml](../phase1/locked_setup.yaml).
+Sesuai aturan di [E0.md](../../E0.md), gain 2-5% tidak otomatis mengunci resolusi yang lebih tinggi — keputusan harus mempertimbangkan efisiensi keseluruhan pipeline. Karena itu, **resolusi kerja di-lock pada 640** dan dibawa ke semua fase selanjutnya melalui [locked_setup.yaml](../phase1/locked_setup.yaml).
 
 ## 3. Learning curve @ 640
 
-Learning curve dibaca dari [outputs/phase0/learning_curve.csv](learning_curve.csv):
+Learning curve dijalankan untuk melihat apakah volume data saat ini sudah cukup, atau menambah data masih bisa memberikan gain yang signifikan.
 
-| fraction | mAP50 | mAP50-95 | precision | recall |
+| Fraction | mAP50 | mAP50-95 | Precision | Recall |
 |---:|---:|---:|---:|---:|
-| 0.25 | 0.4444 | 0.1984 | 0.4187 | 0.5758 |
-| 0.50 | 0.4637 | 0.2202 | 0.4410 | 0.5791 |
-| 0.75 | 0.5033 | 0.2444 | 0.4683 | 0.5906 |
-| 1.00 | 0.5237 | 0.2538 | 0.4906 | 0.5864 |
+| 25% | 0.4444 | 0.1984 | 0.4187 | 0.5758 |
+| 50% | 0.4637 | 0.2202 | 0.4410 | 0.5791 |
+| 75% | 0.5033 | 0.2444 | 0.4683 | 0.5906 |
+| 100% | 0.5237 | 0.2538 | 0.4906 | 0.5864 |
 
-### Cara membacanya
+![Learning curve — mAP vs fraksi data](figures/p0_learning_curve.png)
 
-- `25% -> 50%`: **+0.0217** mAP50-95
-- `50% -> 75%`: **+0.0243** mAP50-95
-- `75% -> 100%`: **+0.0093** mAP50-95
+Kenaikan mAP50-95 antar step:
+- 25% → 50%: **+0.0217**
+- 50% → 75%: **+0.0243**
+- 75% → 100%: **+0.0093**
 
-Interpretasinya:
+Polanya menarik. Dari 25% ke 75%, gain per step relatif konsisten (~0.02). Tapi dari 75% ke 100%, gain tiba-tiba mengecil ke kurang dari setengahnya (0.009). Ini menunjukkan awal dari diminishing returns — model masih belajar sesuatu dari data tambahan, tapi rate-nya sudah melambat.
 
-- performa masih naik saat data bertambah
-- kenaikan itu mulai mengecil mendekati 100%
-- dataset belum benar-benar saturasi, tetapi tanda **diminishing returns** sudah mulai terlihat
+Apakah ini berarti menambah data tidak berguna? Tidak juga. Kurva belum benar-benar plateau (masih naik), jadi menambah data berkualitas — terutama untuk kelas underrepresented seperti B1 dan B4 — kemungkinan masih bisa membantu. Tapi menambah data secara acak tanpa memperhatikan distribusi kelas mungkin hanya memberi diminishing returns yang semakin kecil.
 
 ## 4. Keputusan akhir Phase 0
 
 Phase 0 menutup tiga hal penting:
 
-1. dataset aktif lolos audit dasar dan bebas leakage yang terdeteksi
-2. resolusi kerja terbaik yang realistis untuk repo ini adalah **`640`**
-3. learning curve menunjukkan masih ada manfaat dari penambahan data, tetapi tidak besar secara linear
+1. **Dataset cukup bersih untuk baseline.** Tidak ada leakage, tidak ada label invalid, split sudah terisolasi dengan benar. Bukan dataset sempurna, tapi cukup untuk membangun baseline yang jujur.
+
+2. **Resolusi kerja = 640.** Gain dari 1024 terlalu kecil (2.15%) relatif terhadap peningkatan compute cost. Di skala pipeline E0 dengan puluhan run, 640 adalah pilihan yang paling realistis.
+
+3. **Data belum saturasi, tapi diminishing returns sudah mulai terlihat.** Menambah data secara targeted (bukan random) masih bisa membantu, terutama untuk kelas B1 dan B4 yang underrepresented.
 
 ## 5. Langkah berikutnya
 
-Setelah Phase 0, eksperimen lanjut ke Phase 1A untuk memilih pipeline. Buka [outputs/phase1/phase1_summary.md](../phase1/phase1_summary.md) untuk melihat keputusan one-stage vs two-stage.
+Setelah Phase 0 mengonfirmasi bahwa dataset dan resolusi sudah ter-lock, eksperimen lanjut ke Phase 1A untuk memilih pipeline (one-stage vs two-stage). Buka [phase1_summary.md](../phase1/phase1_summary.md).

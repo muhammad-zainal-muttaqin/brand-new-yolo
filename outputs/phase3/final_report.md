@@ -86,18 +86,22 @@ Visual pendukung: [outputs/phase3/figures/phase1_architecture_benchmark.png](fig
 
 `yolo11m.pt` bukan menang telak — cuma menang tipis, tapi cukup buat di-lock sebagai yang paling stabil. Selisih antar model atas sempit banget, jadi bottleneck utama bukan lagi soal milih family model "ajaib", tapi batasan kualitas task dan data-nya sendiri.
 
-### Phase 2 — Balik ke baseline stabil
+### Phase 2 — Tuning plateau, balik ke baseline stabil
 
-Fase ini ngetes apakah tuning bisa ngalahin baseline Phase 1, atau cuma ngasih variasi kecil tanpa keuntungan jelas.
+Fase ini ngetes apakah tuning bisa ngalahin baseline Phase 1, atau cuma ngasih variasi kecil tanpa keuntungan jelas. Tuning dilakukan secara sequential: loss function → learning rate → batch size → augmentation profile.
 
 Hasil tuning dirangkum di [tuning_results.csv](../phase2/tuning_results.csv):
 
 - `final_source = phase1_baseline_reverted`
 - `reverted_to_phase1_baseline = True`
 
-Artinya, tuning dilakukan, tapi hasilnya balik lagi ke recipe baseline yang paling stabil. Konfigurasi final buat Phase 3 ada di [final_hparams.yaml](../phase2/final_hparams.yaml), confirm run-nya di [p2confirm_yolo11m_640_s3_e30p10m30_eval.json](../phase2/p2confirm_yolo11m_640_s3_e30p10m30_eval.json).
+Yang menarik dari Phase 2 ini bukan bahwa tuning gagal, tapi *di mana* ia plateau. Step pertama — loss function sweep (none, class_weighted, focal) — menghasilkan metrik yang **identik** di ketiga strategi. Ini sinyal kuat bahwa loss function bukan bottleneck: model sudah belajar sebaik yang bisa dari distribusi kelas yang ada, dan mengubah cara penalti loss dihitung tidak mengubah apa yang model pelajari.
 
-Tuning tetap berguna buat nutup pertanyaan eksperimen, tapi hasilnya belum cukup kuat buat geser baseline yang udah stabil. Ini sinyal kalau ruang optimasi ringan udah kebanyakan dijelajahi — gain besar nggak bakal datang dari tweak recipe kecil.
+LR sweep menunjukkan `lr0=0.0005` sedikit lebih baik dari baseline `0.001` (mAP50: 0.535 vs 0.530), tapi gain-nya di bawah 1% dan variance antar seed masih overlap. Batch dan augmentation sweep juga tidak menghasilkan perbedaan yang meyakinkan. Akhirnya keputusannya jelas: **revert ke baseline Phase 1** yang lebih stabil, daripada mengejar gain marginal yang belum tentu reproducible.
+
+Konfigurasi final buat Phase 3 ada di [final_hparams.yaml](../phase2/final_hparams.yaml), confirm run-nya di [p2confirm_yolo11m_640_s3_e30p10m30_eval.json](../phase2/p2confirm_yolo11m_640_s3_e30p10m30_eval.json).
+
+Pesan terbesar dari Phase 2: **bottleneck performa bukan di hyperparameter, tapi di task difficulty dan data quality**. Sweep kecil-kecil di ruang recipe sudah saturated — peningkatan berikutnya harus datang dari perubahan yang lebih fundamental (data augmentation yang domain-specific, arsitektur attention, atau peningkatan kualitas label).
 
 ### Phase 3 — Retrain final selesai, deploy ditunda
 
@@ -139,6 +143,8 @@ Per-class highlights:
 Visual pendukung: [outputs/phase3/figures/phase3_per_class_ap.png](figures/phase3_per_class_ap.png)
 
 Performa final nggak runtuh total, tapi jelas nggak seimbang. `B1` udah kuat, `B3` masih menengah, sementara `B2` dan apalagi `B4` masih jadi sumber kelemahan utama.
+
+Untuk perspektif praktis: mAP50 overall 0.47 artinya kalau model ini dipakai untuk grading sawit di lapangan, sekitar separuh buah yang ada di frame akan terdeteksi dengan benar pada IoU ≥ 0.50 — dan kualitasnya sangat timpang antar kelas. B1 (matang) terdeteksi dengan baik, tapi B4 (paling muda) nyaris hanya sepertiga yang tertangkap. Dalam konteks grading, ini berarti model lebih bisa diandalkan untuk mengonfirmasi kematangan tinggi daripada untuk mendeteksi buah muda secara komprehensif.
 
 Model ini cukup jadi baseline final yang jujur, tapi belum cukup aman kalau targetnya performa rata di semua kelas.
 

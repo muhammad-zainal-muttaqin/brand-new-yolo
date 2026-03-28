@@ -1,11 +1,8 @@
-# Reproducibility and RunPod Termination Checklist
+# Reproducibility & RunPod Termination Checklist
 
-Dokumen ini dibuat sebagai checklist terakhir sebelum RunPod dimatikan. Tujuannya ada dua:
+Dokumen ini adalah checklist terakhir sebelum environment RunPod dimatikan. Dua tujuan utamanya: (1) memastikan semua artefak penting sudah aman di GitHub, dan (2) mendokumentasikan informasi yang diperlukan agar eksperimen ini bisa direproduksi di environment lain setelah RunPod asli tidak lagi tersedia.
 
-1. memastikan artefak penting sudah aman di GitHub
-2. memastikan orang lain masih bisa mereproduksi eksperimen ini setelah environment asli dimatikan
-
-Kalau mulai dari root repo, buka juga [README.md](../../README.md). Untuk keputusan lintas fase, buka [outputs/phase3/final_report.md](../phase3/final_report.md). Untuk evaluasi teknis run final, buka [outputs/phase3/final_evaluation.md](../phase3/final_evaluation.md).
+Peta baca repo di [README.md](../../README.md). Keputusan lintas fase di [final_report.md](../phase3/final_report.md). Evaluasi teknis run final di [final_evaluation.md](../phase3/final_evaluation.md).
 
 ## 1. Snapshot repositori yang dipakai untuk reproduksi
 
@@ -16,7 +13,7 @@ Kalau mulai dari root repo, buka juga [README.md](../../README.md). Untuk keputu
 - Working directory saat eksperimen berjalan: `/workspace/brand-new-yolo`
 - Dataset root saat eksperimen berjalan: `/workspace/Dataset-Sawit-YOLO`
 
-Untuk mereproduksi snapshot ini, **clone repo lalu checkout tag `runpod-archive-e0-final-20260327`**. Jangan mengandalkan `main` terbaru kalau tujuannya adalah mereplikasi hasil final apa adanya.
+Untuk mereproduksi snapshot ini secara eksak, **clone repo lalu checkout tag `runpod-archive-e0-final-20260327`**. Branch `main` bisa saja sudah bergerak setelah titik ini — gunakan tag ini kalau tujuannya adalah mereplikasi hasil final persis seperti yang terdokumentasi.
 
 ## 2. Snapshot environment
 
