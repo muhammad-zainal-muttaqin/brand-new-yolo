@@ -1,48 +1,21 @@
 # Latest Execution Status
 
-Dokumen ini adalah snapshot status eksekusi terakhir. Untuk narasi lengkap lintas fase, buka [outputs/phase3/final_report.md](../phase3/final_report.md). Untuk metrik teknis run final, buka [outputs/phase3/final_evaluation.md](../phase3/final_evaluation.md).
-
-## Sumber utama
-
-Status ini merujuk langsung ke:
-
-- [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_summary.json](../phase3/p3_final_yolo11m_640_s42_e60p15m60_summary.json)
-- [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json](../phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json)
-
-## Snapshot terakhir
-
-- Timestamp UTC: `2026-03-27T13:28:14.265947+00:00`
+- Timestamp UTC: `2026-04-01T16:11:02.100737+00:00`
 - Phase: `phase3`
-- Run name: `p3_final_yolo11m_640_s42_e60p15m60`
-- Model: `yolo11m.pt`
+- Run name: `p3os_yolov8s_640_s42_e60fix`
+- Model: `yolov8s.pt`
 - Image size: `640`
 - Epochs: `60`
 - Batch: `16`
 - Seed: `42`
-- Eval split: `test`
+- Eval split: `val`
 - Status: **completed**
-
-## Lokasi artefak utama
-
-- Save dir: `/workspace/brand-new-yolo/runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60`
-- Best weight: `/workspace/brand-new-yolo/runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/best.pt`
-- Last weight: `/workspace/brand-new-yolo/runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/last.pt`
-
-Untuk file yang bisa dicek langsung di repo, buka:
-
-- [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_summary.json](../phase3/p3_final_yolo11m_640_s42_e60p15m60_summary.json)
-- [outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json](../phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json)
-- [runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/best.pt](../../runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/best.pt)
-
-## Metrik ringkas
-
-- Precision: `0.47629844652241093`
-- Recall: `0.5537874150529214`
-- mAP50: `0.4677363979544993`
-- mAP50-95: `0.2214749388595758`
-
-## Cara lanjut membaca
-
-- Ringkasan akhir: [outputs/phase3/final_report.md](../phase3/final_report.md)
-- Evaluasi teknis: [outputs/phase3/final_evaluation.md](../phase3/final_evaluation.md)
-- Reproduksi dan terminasi: [outputs/reports/reproducibility_and_termination.md](reproducibility_and_termination.md)
+- Save dir: `/workspace/brand-new-yolo/runs/detect/runs/e0/p3os_yolov8s_640_s42_e60fix`
+- Best weight: `/workspace/brand-new-yolo/runs/detect/runs/e0/p3os_yolov8s_640_s42_e60fix/weights/best.pt`
+- Last weight: `/workspace/brand-new-yolo/runs/detect/runs/e0/p3os_yolov8s_640_s42_e60fix/weights/last.pt`
+- Eval checkpoint: `last`
+- Fixed epochs: `True`
+- Precision: `0.5053514288288228`
+- Recall: `0.5352247862211477`
+- mAP50: `0.4702203540787192`
+- mAP50-95: `0.20779397413804662`

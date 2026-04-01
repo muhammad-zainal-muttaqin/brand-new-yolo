@@ -59,7 +59,9 @@ def commit_and_push() -> None:
     with SYNC_LOG.open('a', encoding='utf-8') as f:
         f.write(f'- {ts} | commit {commit_hash} | write final root README report\n')
     sh(['git', 'add', str(SYNC_LOG.relative_to(ROOT))])
-    sh(['git', 'commit', '--amend', '--no-edit'])
+    diff = subprocess.run(['git', 'diff', '--cached', '--quiet'], cwd=ROOT)
+    if diff.returncode != 0:
+        sh(['git', 'commit', '-m', 'log sync: write final root README report'])
     auth = base64.b64encode(f"x-access-token:{os.environ['GITHUB_TOKEN']}".encode()).decode()
     for attempt in range(1, 4):
         r = subprocess.run(['git', '-c', f'http.https://github.com/.extraheader=AUTHORIZATION: basic {auth}', 'push', 'origin', 'main'], cwd=ROOT, text=True)

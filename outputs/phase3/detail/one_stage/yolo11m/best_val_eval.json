@@ -1,0 +1,470 @@
+{
+  "metric_schema": "detection",
+  "run_name": "p3os_yolo11m_640_s42_e60fix",
+  "branch": "one_stage",
+  "candidate": "yolo11m",
+  "checkpoint": "best",
+  "weight_path": "/workspace/brand-new-yolo/runs/detect/runs/e0/p3os_yolo11m_640_s42_e60fix/weights/best.pt",
+  "split": "val",
+  "optimized_conf": 0.1,
+  "precision": 0.5160895467885428,
+  "recall": 0.6002582748302572,
+  "f1": 0.5550008966990275,
+  "map50": 0.5371943280267729,
+  "map50_95": 0.2659351854689833,
+  "accuracy": 0.6751615218951902,
+  "support_total": 2786,
+  "predicted_total": 5143,
+  "missed_gt_total": 387,
+  "false_positive_total": 2744,
+  "macro_avg": {
+    "precision": 0.38974418200735395,
+    "recall": 0.6622952743613705,
+    "f1": 0.48868845207974615
+  },
+  "weighted_avg": {
+    "precision": 0.36731357227269074,
+    "recall": 0.6751615218951902,
+    "f1": 0.4736769381209764
+  },
+  "per_class": [
+    {
+      "class_idx": 0,
+      "class_name": "B1",
+      "precision": 0.5625,
+      "recall": 0.8372093023255814,
+      "f1": 0.6728971962616822,
+      "support": 301,
+      "predicted": 448,
+      "true_positive": 252,
+      "false_positive": 196,
+      "false_negative": 49,
+      "missed_gt": 14,
+      "map50": 0.8087145863480364,
+      "map50_95": 0.4474927797135548,
+      "ultralytics_precision": 0.6819485271210475,
+      "ultralytics_recall": 0.8205980066445183
+    },
+    {
+      "class_idx": 1,
+      "class_name": "B2",
+      "precision": 0.3300589390962672,
+      "recall": 0.5490196078431373,
+      "f1": 0.4122699386503068,
+      "support": 612,
+      "predicted": 1018,
+      "true_positive": 336,
+      "false_positive": 682,
+      "false_negative": 276,
+      "missed_gt": 80,
+      "map50": 0.4081793955518199,
+      "map50_95": 0.20716743618871894,
+      "ultralytics_precision": 0.40629820566675734,
+      "ultralytics_recall": 0.5261437908496732
+    },
+    {
+      "class_idx": 2,
+      "class_name": "B3",
+      "precision": 0.3697144922298518,
+      "recall": 0.775587566338135,
+      "f1": 0.5007342143906021,
+      "support": 1319,
+      "predicted": 2767,
+      "true_positive": 1023,
+      "false_positive": 1744,
+      "false_negative": 296,
+      "missed_gt": 182,
+      "map50": 0.5597017842173009,
+      "map50_95": 0.2626916757044128,
+      "ultralytics_precision": 0.5120084496740822,
+      "ultralytics_recall": 0.6853677028051555
+    },
+    {
+      "class_idx": 3,
+      "class_name": "B4",
+      "precision": 0.2967032967032967,
+      "recall": 0.48736462093862815,
+      "f1": 0.36885245901639346,
+      "support": 554,
+      "predicted": 910,
+      "true_positive": 270,
+      "false_positive": 640,
+      "false_negative": 284,
+      "missed_gt": 111,
+      "map50": 0.3721815459899343,
+      "map50_95": 0.14638885026924664,
+      "ultralytics_precision": 0.4641030046922839,
+      "ultralytics_recall": 0.36892359902168176
+    }
+  ],
+  "confusion_matrix": {
+    "classes": [
+      "B1",
+      "B2",
+      "B3",
+      "B4"
+    ],
+    "counts": [
+      [
+        252,
+        31,
+        4,
+        0
+      ],
+      [
+        26,
+        336,
+        162,
+        8
+      ],
+      [
+        2,
+        67,
+        1023,
+        45
+      ],
+      [
+        1,
+        10,
+        162,
+        270
+      ]
+    ],
+    "row_normalized": [
+      {
+        "pred_0": 0.8372093023255814,
+        "pred_1": 0.10299003322259136,
+        "pred_2": 0.013289036544850499,
+        "pred_3": 0.0,
+        "missed_gt": 0.046511627906976744
+      },
+      {
+        "pred_0": 0.042483660130718956,
+        "pred_1": 0.5490196078431373,
+        "pred_2": 0.2647058823529412,
+        "pred_3": 0.013071895424836602,
+        "missed_gt": 0.13071895424836602
+      },
+      {
+        "pred_0": 0.001516300227445034,
+        "pred_1": 0.05079605761940864,
+        "pred_2": 0.775587566338135,
+        "pred_3": 0.03411675511751327,
+        "missed_gt": 0.1379833206974981
+      },
+      {
+        "pred_0": 0.0018050541516245488,
+        "pred_1": 0.018050541516245487,
+        "pred_2": 0.2924187725631769,
+        "pred_3": 0.48736462093862815,
+        "missed_gt": 0.2003610108303249
+      }
+    ],
+    "missed_by_class": {
+      "B1": 14,
+      "B2": 80,
+      "B3": 182,
+      "B4": 111
+    },
+    "false_positive_by_class": {
+      "B1": 167,
+      "B2": 574,
+      "B3": 1416,
+      "B4": 587
+    },
+    "largest_confusions": [
+      {
+        "true_class": "B2",
+        "pred_class": "B3",
+        "count": 162
+      },
+      {
+        "true_class": "B4",
+        "pred_class": "B3",
+        "count": 162
+      },
+      {
+        "true_class": "B3",
+        "pred_class": "B2",
+        "count": 67
+      },
+      {
+        "true_class": "B3",
+        "pred_class": "B4",
+        "count": 45
+      },
+      {
+        "true_class": "B1",
+        "pred_class": "B2",
+        "count": 31
+      },
+      {
+        "true_class": "B2",
+        "pred_class": "B1",
+        "count": 26
+      }
+    ]
+  },
+  "top_errors": [
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0654_1.jpg",
+      "tp": 1,
+      "confusions": 6,
+      "missed_gt": 0,
+      "false_positive": 12,
+      "error_score": 24,
+      "categories": "B2_B3_confusion;B3_B4_confusion;false_positive",
+      "branch": "one_stage",
+      "candidate": "yolo11m",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0094_3.jpg",
+      "tp": 2,
+      "confusions": 4,
+      "missed_gt": 2,
+      "false_positive": 8,
+      "error_score": 20,
+      "categories": "B2_B3_confusion;B3_B4_confusion;B4_missed;false_positive",
+      "branch": "one_stage",
+      "candidate": "yolo11m",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0392_1.jpg",
+      "tp": 2,
+      "confusions": 1,
+      "missed_gt": 3,
+      "false_positive": 12,
+      "error_score": 20,
+      "categories": "B2_B3_confusion;B4_missed;false_positive",
+      "branch": "one_stage",
+      "candidate": "yolo11m",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0418_2.jpg",
+      "tp": 3,
+      "confusions": 0,
+      "missed_gt": 3,
+      "false_positive": 14,
+      "error_score": 20,
+      "categories": "false_positive",
+      "branch": "one_stage",
+      "candidate": "yolo11m",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0221_1.jpg",
+      "tp": 2,
+      "confusions": 2,
+      "missed_gt": 3,
+      "false_positive": 9,
+      "error_score": 19,
+      "categories": "B2_B3_confusion;B3_B4_confusion;false_positive",
+      "branch": "one_stage",
+      "candidate": "yolo11m",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0362_3.jpg",
+      "tp": 4,
+      "confusions": 2,
+      "missed_gt": 1,
+      "false_positive": 11,
+      "error_score": 17,
+      "categories": "B2_B3_confusion;B3_B4_confusion;B4_missed;false_positive",
+      "branch": "one_stage",
+      "candidate": "yolo11m",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0546_2.jpg",
+      "tp": 4,
+      "confusions": 1,
+      "missed_gt": 3,
+      "false_positive": 9,
+      "error_score": 17,
+      "categories": "B2_B3_confusion;B4_missed;false_positive",
+      "branch": "one_stage",
+      "candidate": "yolo11m",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0352_1.jpg",
+      "tp": 4,
+      "confusions": 1,
+      "missed_gt": 1,
+      "false_positive": 13,
+      "error_score": 17,
+      "categories": "B3_B4_confusion;false_positive",
+      "branch": "one_stage",
+      "candidate": "yolo11m",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0293_4.jpg",
+      "tp": 1,
+      "confusions": 0,
+      "missed_gt": 5,
+      "false_positive": 7,
+      "error_score": 17,
+      "categories": "B4_missed;false_positive",
+      "branch": "one_stage",
+      "candidate": "yolo11m",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0388_2.jpg",
+      "tp": 0,
+      "confusions": 0,
+      "missed_gt": 3,
+      "false_positive": 11,
+      "error_score": 17,
+      "categories": "false_positive",
+      "branch": "one_stage",
+      "candidate": "yolo11m",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0019_2.jpg",
+      "tp": 4,
+      "confusions": 3,
+      "missed_gt": 0,
+      "false_positive": 10,
+      "error_score": 16,
+      "categories": "B3_B4_confusion;false_positive",
+      "branch": "one_stage",
+      "candidate": "yolo11m",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0745_4.jpg",
+      "tp": 2,
+      "confusions": 2,
+      "missed_gt": 3,
+      "false_positive": 6,
+      "error_score": 16,
+      "categories": "B3_B4_confusion;false_positive",
+      "branch": "one_stage",
+      "candidate": "yolo11m",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0079_1.jpg",
+      "tp": 3,
+      "confusions": 2,
+      "missed_gt": 2,
+      "false_positive": 8,
+      "error_score": 16,
+      "categories": "B2_B3_confusion;false_positive",
+      "branch": "one_stage",
+      "candidate": "yolo11m",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0714_1.jpg",
+      "tp": 1,
+      "confusions": 2,
+      "missed_gt": 2,
+      "false_positive": 8,
+      "error_score": 16,
+      "categories": "B3_B4_confusion;false_positive",
+      "branch": "one_stage",
+      "candidate": "yolo11m",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/LONSUM_A21A_0048_3.jpg",
+      "tp": 0,
+      "confusions": 2,
+      "missed_gt": 2,
+      "false_positive": 8,
+      "error_score": 16,
+      "categories": "B2_B3_confusion;false_positive",
+      "branch": "one_stage",
+      "candidate": "yolo11m",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0038_2.jpg",
+      "tp": 2,
+      "confusions": 1,
+      "missed_gt": 2,
+      "false_positive": 10,
+      "error_score": 16,
+      "categories": "B4_missed;false_positive",
+      "branch": "one_stage",
+      "candidate": "yolo11m",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0834_7.jpg",
+      "tp": 3,
+      "confusions": 1,
+      "missed_gt": 2,
+      "false_positive": 10,
+      "error_score": 16,
+      "categories": "B3_B4_confusion;false_positive",
+      "branch": "one_stage",
+      "candidate": "yolo11m",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0066_3.jpg",
+      "tp": 5,
+      "confusions": 1,
+      "missed_gt": 1,
+      "false_positive": 12,
+      "error_score": 16,
+      "categories": "false_positive",
+      "branch": "one_stage",
+      "candidate": "yolo11m",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0043_2.jpg",
+      "tp": 2,
+      "confusions": 4,
+      "missed_gt": 0,
+      "false_positive": 7,
+      "error_score": 15,
+      "categories": "B2_B3_confusion;false_positive",
+      "branch": "one_stage",
+      "candidate": "yolo11m",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0043_3.jpg",
+      "tp": 2,
+      "confusions": 3,
+      "missed_gt": 0,
+      "false_positive": 9,
+      "error_score": 15,
+      "categories": "B2_B3_confusion;false_positive",
+      "branch": "one_stage",
+      "candidate": "yolo11m",
+      "checkpoint": "best",
+      "split": "val"
+    }
+  ]
+}

@@ -72,6 +72,47 @@ def _save(fig: plt.Figure, path: Path) -> None:
     print(f"  [OK] {path.relative_to(ROOT)}")
 
 
+def _phase3_csv(name: str) -> pd.DataFrame:
+    path = P3 / name
+    if not path.exists():
+        print(f"  [SKIP] missing {path.relative_to(ROOT)}")
+        return pd.DataFrame()
+    return pd.read_csv(path)
+
+
+def _candidate_color(candidate: str) -> str:
+    palette = {
+        "yolo11m": "#1D4ED8",
+        "yolov8s": "#F97316",
+        "two_stage": "#10B981",
+        "gtcrop": "#059669",
+    }
+    return palette.get(candidate, "#64748B")
+
+
+def _canonical_class_order(columns: list[str]) -> list[str]:
+    return [name for name in ["B1", "B2", "B3", "B4"] if name in columns]
+
+
+def _ordered_candidates(values: list[str]) -> list[str]:
+    order = {"yolo11m": 0, "yolov8s": 1}
+    return sorted(values, key=lambda value: (order.get(value, 99), value))
+
+
+def _phase3_one_stage_metrics(split: str = "test", checkpoint: str = "last") -> pd.DataFrame:
+    df = _phase3_csv("final_metrics.csv")
+    if df.empty:
+        return df
+    required = {"branch", "checkpoint", "split"}
+    if not required.issubset(df.columns):
+        return pd.DataFrame()
+    return df[
+        (df["branch"] == "one_stage")
+        & (df["checkpoint"] == checkpoint)
+        & (df["split"] == split)
+    ].copy()
+
+
 # ===================================================================
 # Phase 0
 # ===================================================================
@@ -385,60 +426,121 @@ def f16_imbalance_sweep() -> None:
 # Phase 3
 # ===================================================================
 def f10_per_class_metrics() -> None:
-    with open(P3 / "p3_final_yolo11m_640_s42_e60p15m60_eval.json") as f:
-        data = json.load(f)
-    classes = [c["class_name"] for c in data["per_class"]]
+    df = _phase3_csv("per_class_metrics.csv")
+    if df.empty:
+        return
+    required = {"branch", "checkpoint", "split", "candidate", "class_name", "precision", "recall", "map50", "map50_95"}
+    if not required.issubset(df.columns):
+        print("  [SKIP] per_class_metrics.csv still uses the old Phase 3 schema")
+        return
+    df = df[
+        (df["branch"] == "one_stage")
+        & (df["checkpoint"] == "last")
+        & (df["split"] == "test")
+    ].copy()
+    if df.empty:
+        print("  [SKIP] no one-stage per-class metrics for Phase 3")
+        return
+
+    candidates = _ordered_candidates(df["candidate"].dropna().unique().tolist())
     metrics_list = ["precision", "recall", "map50", "map50_95"]
     labels = ["Precision", "Recall", "mAP50", "mAP50-95"]
-    colors_list = [METRIC_COLORS["precision"], METRIC_COLORS["recall"],
-                   METRIC_COLORS["mAP50"], METRIC_COLORS["mAP50-95"]]
-    fig, ax = plt.subplots(figsize=(11, 6), dpi=DPI)
-    _style_ax(ax)
-    x = np.arange(len(classes))
-    n = len(metrics_list)
-    w = 0.18
-    for i, (metric, label, color) in enumerate(zip(metrics_list, labels, colors_list)):
-        vals = [c[metric] for c in data["per_class"]]
-        bars = ax.bar(x + (i - n/2 + 0.5) * w, vals, w, label=label, color=color, edgecolor="white")
-        for bar in bars:
-            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.008,
-                    f"{bar.get_height():.3f}", ha="center", va="bottom", fontsize=8,
-                    fontweight="bold", color=color)
-    ax.set_xticks(x)
-    ax.set_xticklabels(classes, fontsize=13, fontweight="bold")
-    ax.set_ylabel("Score", fontsize=12)
-    ax.set_title("Metrik per Kelas — Final Run (Test Set)", fontsize=16, fontweight="bold", pad=14)
-    ax.legend(fontsize=10, framealpha=0.9, ncol=4, loc="upper right")
-    ax.grid(axis="y", color="#E2E8F0", lw=0.8)
-    ax.set_ylim(0, 0.95)
+    colors_list = [
+        METRIC_COLORS["precision"],
+        METRIC_COLORS["recall"],
+        METRIC_COLORS["mAP50"],
+        METRIC_COLORS["mAP50-95"],
+    ]
+
+    fig, axes = plt.subplots(1, len(candidates), figsize=(6 * len(candidates), 6), dpi=DPI, sharey=True)
+    if len(candidates) == 1:
+        axes = [axes]
+
+    for ax, candidate in zip(axes, candidates):
+        _style_ax(ax)
+        subset = df[df["candidate"] == candidate].copy()
+        subset["class_name"] = pd.Categorical(subset["class_name"], categories=["B1", "B2", "B3", "B4"], ordered=True)
+        subset = subset.sort_values("class_name")
+        classes = subset["class_name"].tolist()
+        x = np.arange(len(classes))
+        width = 0.18
+        for idx, (metric, label, color) in enumerate(zip(metrics_list, labels, colors_list)):
+            vals = subset[metric].astype(float).tolist()
+            bars = ax.bar(x + (idx - 1.5) * width, vals, width, label=label, color=color, edgecolor="white")
+            for bar in bars:
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    bar.get_height() + 0.008,
+                    f"{bar.get_height():.3f}",
+                    ha="center",
+                    va="bottom",
+                    fontsize=8,
+                    fontweight="bold",
+                    color=color,
+                )
+        ax.set_xticks(x)
+        ax.set_xticklabels(classes, fontsize=12, fontweight="bold")
+        ax.set_title(f"{candidate} — last / test", fontsize=14, fontweight="bold", color=_candidate_color(candidate))
+        ax.grid(axis="y", color="#E2E8F0", lw=0.8)
+        ax.set_ylim(0, 0.98)
+    axes[0].set_ylabel("Score", fontsize=12)
+    axes[-1].legend(fontsize=10, framealpha=0.9, ncol=2, loc="upper right")
+    fig.suptitle("Metrik per Kelas — Kandidat Utama Phase 3", fontsize=17, fontweight="bold", y=1.02)
     fig.tight_layout()
     _save(fig, P3 / "figures" / "p3_per_class_metrics.png")
 
 
 def f11_threshold_sweep() -> None:
-    df = pd.read_csv(P3 / "threshold_sweep.csv")
-    fig, ax = plt.subplots(figsize=(10, 5.5), dpi=DPI)
-    _style_ax(ax)
-    for metric, label, color in [
+    df = _phase3_csv("threshold_sweep.csv")
+    if df.empty:
+        return
+    required = {"branch", "checkpoint", "candidate", "conf", "precision", "recall", "map50", "map50_95"}
+    if not required.issubset(df.columns):
+        print("  [SKIP] threshold_sweep.csv still uses the old Phase 3 schema")
+        return
+    df = df[(df["branch"] == "one_stage") & (df["checkpoint"] == "last")].copy()
+    if df.empty:
+        print("  [SKIP] no threshold sweep rows for one-stage Phase 3")
+        return
+    df["conf"] = df["conf"].astype(float)
+    candidates = _ordered_candidates(df["candidate"].dropna().unique().tolist())
+
+    fig, axes = plt.subplots(2, 2, figsize=(13, 9), dpi=DPI, sharex=True)
+    fig.suptitle("Threshold Sweep — One-Stage Phase 3 (`last`, val)", fontsize=17, fontweight="bold", y=1.02)
+    metric_specs = [
         ("precision", "Precision", METRIC_COLORS["precision"]),
         ("recall", "Recall", METRIC_COLORS["recall"]),
         ("map50", "mAP50", METRIC_COLORS["mAP50"]),
-        ("map50_95", "mAP50-95", METRIC_COLORS["mAP50-95"]),
-        ("b4_recall", "B4 Recall", METRIC_COLORS["b4_recall"]),
-    ]:
-        ax.plot(df["conf"], df[metric], marker="o", markersize=7, lw=2.2, color=color, label=label, zorder=3)
-    ax.set_xlabel("Confidence Threshold", fontsize=12)
-    ax.set_ylabel("Score", fontsize=12)
-    ax.set_title("Threshold Sweep — Trade-off Metrik vs Confidence", fontsize=16, fontweight="bold", pad=14)
-    ax.legend(fontsize=10, framealpha=0.9, ncol=3)
-    ax.grid(color="#E2E8F0", lw=0.8)
-    ax.set_xticks(df["conf"])
+        ("map50_95", "mAP50-95", METRIC_COLORS["mAP50_95"]),
+    ]
+    for ax, (metric, title, color) in zip(axes.flat, metric_specs):
+        _style_ax(ax)
+        for candidate in candidates:
+            subset = df[df["candidate"] == candidate].sort_values("conf")
+            ax.plot(
+                subset["conf"],
+                subset[metric].astype(float),
+                marker="o",
+                markersize=6,
+                lw=2.2,
+                color=_candidate_color(candidate),
+                label=candidate,
+                zorder=3,
+            )
+        ax.set_title(title, fontsize=13, fontweight="bold", color=color)
+        ax.set_ylabel("Score", fontsize=11)
+        ax.grid(color="#E2E8F0", lw=0.8)
+    for ax in axes[1]:
+        ax.set_xlabel("Confidence Threshold", fontsize=11)
+    axes[0, 1].legend(fontsize=10, framealpha=0.9)
     fig.tight_layout()
     _save(fig, P3 / "figures" / "p3_threshold_sweep_detail.png")
 
 
 def f12_error_distribution() -> None:
-    df = pd.read_csv(P3 / "error_stratification.csv")
+    df = _phase3_csv("error_stratification.csv")
+    if df.empty or "categories" not in df:
+        return
     cat_counts: Counter = Counter()
     for cats in df["categories"].dropna():
         for cat in cats.split(";"):
@@ -464,11 +566,19 @@ def f12_error_distribution() -> None:
 
 
 def f13_error_by_image() -> None:
-    df = pd.read_csv(P3 / "error_stratification.csv")
+    df = _phase3_csv("error_stratification.csv")
+    if df.empty:
+        return
+    df["error_score"] = pd.to_numeric(df["error_score"], errors="coerce").fillna(0)
     df = df.sort_values("error_score", ascending=False).head(20)
+    if df.empty:
+        return
     dominant = df["categories"].apply(lambda x: x.split(";")[0].strip() if pd.notna(x) else "unknown")
     colors_list = [ERROR_COLORS.get(d, "#94A3B8") for d in dominant]
-    short_names = df["image_path"].apply(lambda p: Path(p).stem)
+    short_names = df.apply(
+        lambda row: f"{row.get('candidate', 'na')}:{Path(str(row.get('image_path', 'unknown'))).stem}",
+        axis=1,
+    )
     fig, ax = plt.subplots(figsize=(14, 6), dpi=DPI)
     _style_ax(ax)
     bars = ax.bar(range(len(df)), df["error_score"], color=colors_list, edgecolor="white", width=0.7)
@@ -489,134 +599,188 @@ def f13_error_by_image() -> None:
 
 
 def f14_training_curves() -> None:
-    """Training curves for the final run — loss convergence and metric evolution."""
-    csv_path = RUNS / "p3_final_yolo11m_640_s42_e60p15m60" / "results.csv"
-    df = pd.read_csv(csv_path)
-    # Strip whitespace from column names (YOLO sometimes adds spaces)
-    df.columns = df.columns.str.strip()
+    """Training curves for the main one-stage Phase 3 candidates."""
+    metrics_df = _phase3_one_stage_metrics(split="val", checkpoint="last")
+    if metrics_df.empty:
+        print("  [SKIP] no Phase 3 one-stage metrics available for training curves")
+        return
 
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10), dpi=DPI)
-    fig.suptitle("Training Curves — Final Run (60 Epochs)", fontsize=18, fontweight="bold", y=1.01)
+    candidates = _ordered_candidates(metrics_df["candidate"].dropna().unique().tolist())
+    run_names = {
+        candidate: metrics_df[metrics_df["candidate"] == candidate]["run_name"].dropna().iloc[0]
+        for candidate in candidates
+    }
+    curves: dict[str, pd.DataFrame] = {}
+    for candidate, run_name in run_names.items():
+        csv_path = RUNS / run_name / "results.csv"
+        if not csv_path.exists():
+            continue
+        df = pd.read_csv(csv_path)
+        df.columns = df.columns.str.strip()
+        curves[candidate] = df
+    if not curves:
+        print("  [SKIP] missing training curves CSVs in runs/")
+        return
 
-    epochs = df["epoch"]
+    fig, axes = plt.subplots(2, len(curves), figsize=(7 * len(curves), 8), dpi=DPI, sharex="col")
+    if len(curves) == 1:
+        axes = np.array([[axes[0]], [axes[1]]])
+    fig.suptitle("Training Curves — Phase 3 One-Stage Candidates", fontsize=18, fontweight="bold", y=1.02)
 
-    # Panel 1: Training losses
-    ax = axes[0, 0]
-    _style_ax(ax)
-    for col, label, color in [
-        ("train/box_loss", "Box Loss", "#1D4ED8"),
-        ("train/cls_loss", "Cls Loss", "#DC2626"),
-        ("train/dfl_loss", "DFL Loss", "#059669"),
-    ]:
-        ax.plot(epochs, df[col], lw=2, color=color, label=label, alpha=0.85)
-    ax.set_title("Training Loss", fontsize=13, fontweight="bold")
-    ax.set_xlabel("Epoch", fontsize=11)
-    ax.set_ylabel("Loss", fontsize=11)
-    ax.legend(fontsize=9, framealpha=0.9)
-    ax.grid(color="#E2E8F0", lw=0.8)
+    for col_idx, candidate in enumerate(candidates):
+        if candidate not in curves:
+            continue
+        df = curves[candidate]
+        epochs = df["epoch"]
 
-    # Panel 2: Validation losses
-    ax = axes[0, 1]
-    _style_ax(ax)
-    for col, label, color in [
-        ("val/box_loss", "Box Loss", "#1D4ED8"),
-        ("val/cls_loss", "Cls Loss", "#DC2626"),
-        ("val/dfl_loss", "DFL Loss", "#059669"),
-    ]:
-        ax.plot(epochs, df[col], lw=2, color=color, label=label, alpha=0.85)
-    ax.set_title("Validation Loss", fontsize=13, fontweight="bold")
-    ax.set_xlabel("Epoch", fontsize=11)
-    ax.set_ylabel("Loss", fontsize=11)
-    ax.legend(fontsize=9, framealpha=0.9)
-    ax.grid(color="#E2E8F0", lw=0.8)
+        ax = axes[0, col_idx]
+        _style_ax(ax)
+        ax.plot(epochs, df["metrics/mAP50(B)"], lw=2.5, color=METRIC_COLORS["mAP50"], label="mAP50", zorder=3)
+        ax.plot(epochs, df["metrics/mAP50-95(B)"], lw=2.5, color=METRIC_COLORS["mAP50_95"], label="mAP50-95", zorder=3)
+        ax.set_title(f"{candidate} — Validation mAP", fontsize=14, fontweight="bold", color=_candidate_color(candidate))
+        ax.set_ylabel("Score", fontsize=11)
+        ax.legend(fontsize=9, framealpha=0.9)
+        ax.grid(color="#E2E8F0", lw=0.8)
 
-    # Panel 3: mAP metrics
-    ax = axes[1, 0]
-    _style_ax(ax)
-    ax.plot(epochs, df["metrics/mAP50(B)"], lw=2.5, color="#1D4ED8", label="mAP50", zorder=3)
-    ax.plot(epochs, df["metrics/mAP50-95(B)"], lw=2.5, color="#059669", label="mAP50-95", zorder=3)
-    # Mark best epoch
-    best_idx = df["metrics/mAP50(B)"].idxmax()
-    best_epoch = epochs.iloc[best_idx]
-    best_val = df["metrics/mAP50(B)"].iloc[best_idx]
-    ax.scatter([best_epoch], [best_val], s=120, facecolor="white", edgecolor="#1D4ED8",
-               linewidth=2.5, zorder=5)
-    ax.annotate(f"Best: {best_val:.4f}\n(epoch {int(best_epoch)})",
-                xy=(best_epoch, best_val), xytext=(best_epoch + 5, best_val + 0.02),
-                fontsize=9, fontweight="bold", color="#1D4ED8",
-                arrowprops=dict(arrowstyle="->", color="#1D4ED8", lw=1.2))
-    ax.set_title("Validation mAP", fontsize=13, fontweight="bold")
-    ax.set_xlabel("Epoch", fontsize=11)
-    ax.set_ylabel("Score", fontsize=11)
-    ax.legend(fontsize=9, framealpha=0.9)
-    ax.grid(color="#E2E8F0", lw=0.8)
-
-    # Panel 4: Precision & Recall
-    ax = axes[1, 1]
-    _style_ax(ax)
-    ax.plot(epochs, df["metrics/precision(B)"], lw=2.5, color=METRIC_COLORS["precision"],
-            label="Precision", zorder=3)
-    ax.plot(epochs, df["metrics/recall(B)"], lw=2.5, color=METRIC_COLORS["recall"],
-            label="Recall", zorder=3)
-    ax.set_title("Precision & Recall", fontsize=13, fontweight="bold")
-    ax.set_xlabel("Epoch", fontsize=11)
-    ax.set_ylabel("Score", fontsize=11)
-    ax.legend(fontsize=9, framealpha=0.9)
-    ax.grid(color="#E2E8F0", lw=0.8)
+        ax = axes[1, col_idx]
+        _style_ax(ax)
+        ax.plot(epochs, df["metrics/precision(B)"], lw=2.2, color=METRIC_COLORS["precision"], label="Precision", zorder=3)
+        ax.plot(epochs, df["metrics/recall(B)"], lw=2.2, color=METRIC_COLORS["recall"], label="Recall", zorder=3)
+        for loss_col, loss_label, loss_color in [
+            ("train/box_loss", "Box Loss", "#94A3B8"),
+            ("train/cls_loss", "Cls Loss", "#64748B"),
+        ]:
+            if loss_col in df:
+                ax.plot(epochs, df[loss_col], lw=1.6, color=loss_color, label=loss_label, alpha=0.65)
+        ax.set_title(f"{candidate} — Precision / Recall / Loss", fontsize=14, fontweight="bold", color=_candidate_color(candidate))
+        ax.set_xlabel("Epoch", fontsize=11)
+        ax.set_ylabel("Score / Loss", fontsize=11)
+        ax.legend(fontsize=8, framealpha=0.9, ncol=2)
+        ax.grid(color="#E2E8F0", lw=0.8)
 
     fig.tight_layout()
     _save(fig, P3 / "figures" / "p3_training_curves.png")
 
 
 def f17_cross_phase_comparison() -> None:
-    """Cross-phase per-class mAP50 comparison: Phase 1B baseline → Phase 2 confirm → Phase 3 final."""
-    # Phase 1B: average of 2 seeds from per_class_metrics.csv for yolo11m
-    p1_df = pd.read_csv(P1 / "per_class_metrics.csv")
-    p1_yolo11m = p1_df[p1_df["model"] == "yolo11m.pt"].groupby("class_name")["map50"].mean()
+    """Compare val vs test and candidate vs candidate for the main one-stage branch."""
+    df = _phase3_csv("final_metrics.csv")
+    if df.empty:
+        return
+    required = {"branch", "checkpoint", "candidate", "split", "map50", "map50_95", "precision", "recall"}
+    if not required.issubset(df.columns):
+        print("  [SKIP] final_metrics.csv still uses the old Phase 3 schema")
+        return
+    df = df[(df["branch"] == "one_stage") & (df["checkpoint"] == "last")].copy()
+    if df.empty:
+        print("  [SKIP] no one-stage Phase 3 rows for comparison chart")
+        return
 
-    # Phase 2 confirm
-    with open(P2 / "p2confirm_yolo11m_640_s3_e30p10m30_eval.json") as f:
-        p2 = json.load(f)
-    p2_map50 = {c["class_name"]: c["map50"] for c in p2["per_class"]}
-
-    # Phase 3 final
-    with open(P3 / "p3_final_yolo11m_640_s42_e60p15m60_eval.json") as f:
-        p3 = json.load(f)
-    p3_map50 = {c["class_name"]: c["map50"] for c in p3["per_class"]}
-
-    classes = ["B1", "B2", "B3", "B4"]
-    fig, ax = plt.subplots(figsize=(11, 6), dpi=DPI)
-    _style_ax(ax)
-
-    x = np.arange(len(classes))
-    w = 0.22
-    phase_data = [
-        ("Phase 1B\n(val, 30ep)", {c: p1_yolo11m[c] for c in classes}, "#94A3B8"),
-        ("Phase 2 Confirm\n(val, 30ep, seed 3)", p2_map50, "#1D4ED8"),
-        ("Phase 3 Final\n(test, 60ep, seed 42)", p3_map50, "#F97316"),
+    candidates = _ordered_candidates(df["candidate"].dropna().unique().tolist())
+    metric_specs = [
+        ("map50", "mAP50"),
+        ("map50_95", "mAP50-95"),
+        ("precision", "Precision"),
+        ("recall", "Recall"),
     ]
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5.5), dpi=DPI)
+    fig.suptitle("Perbandingan Kandidat Utama Phase 3 (`last`)", fontsize=17, fontweight="bold", y=1.02)
 
-    for i, (label, data, color) in enumerate(phase_data):
-        vals = [data[c] for c in classes]
-        bars = ax.bar(x + (i - 1) * w, vals, w, label=label, color=color, edgecolor="white")
-        for bar in bars:
-            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.008,
-                    f"{bar.get_height():.3f}", ha="center", va="bottom", fontsize=8,
-                    fontweight="bold", color=color)
-
-    # Draw the 0.70 threshold line
-    ax.axhline(0.70, color="#DC2626", lw=1.5, ls="--", alpha=0.7, zorder=0)
-    ax.text(3.5, 0.71, "Target AP50 ≥ 0.70", fontsize=9, color="#DC2626", ha="right", fontweight="bold")
-
-    ax.set_xticks(x)
-    ax.set_xticklabels(classes, fontsize=13, fontweight="bold")
-    ax.set_ylabel("mAP50", fontsize=12)
-    ax.set_title("Evolusi Per-Class mAP50 Lintas Fase", fontsize=16, fontweight="bold", pad=14)
-    ax.legend(fontsize=9, framealpha=0.9)
-    ax.grid(axis="y", color="#E2E8F0", lw=0.8)
-    ax.set_ylim(0, 0.95)
+    split_order = ["val", "test"]
+    for ax, metrics_group, title in zip(
+        axes,
+        [metric_specs[:2], metric_specs[2:]],
+        ["mAP Metrics", "Precision / Recall"],
+    ):
+        _style_ax(ax)
+        labels = [f"{candidate}\n{split}" for candidate in candidates for split in split_order]
+        x = np.arange(len(labels))
+        width = 0.35 if len(metrics_group) == 2 else 0.28
+        for idx, (metric, metric_label) in enumerate(metrics_group):
+            vals = []
+            for candidate in candidates:
+                for split in split_order:
+                    row = df[(df["candidate"] == candidate) & (df["split"] == split)]
+                    vals.append(float(row[metric].iloc[0]) if not row.empty else 0.0)
+            bars = ax.bar(
+                x + (idx - (len(metrics_group) - 1) / 2) * width,
+                vals,
+                width,
+                label=metric_label,
+                color=METRIC_COLORS[metric],
+                edgecolor="white",
+            )
+            for bar in bars:
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    bar.get_height() + 0.008,
+                    f"{bar.get_height():.3f}",
+                    ha="center",
+                    va="bottom",
+                    fontsize=8,
+                    fontweight="bold",
+                    color=METRIC_COLORS[metric],
+                )
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels, fontsize=10)
+        ax.set_ylim(0, 1.0)
+        ax.set_title(title, fontsize=14, fontweight="bold")
+        ax.grid(axis="y", color="#E2E8F0", lw=0.8)
+        ax.legend(fontsize=9, framealpha=0.9)
+    axes[0].set_ylabel("Score", fontsize=12)
     fig.tight_layout()
     _save(fig, P3 / "figures" / "p3_cross_phase_comparison.png")
+
+
+def f18_confusion_heatmaps() -> None:
+    df = _phase3_csv("confusion_matrix.csv")
+    if df.empty:
+        return
+    required = {"branch", "candidate", "checkpoint", "split", "true_class"}
+    if not required.issubset(df.columns):
+        print("  [SKIP] confusion_matrix.csv still uses the old Phase 3 schema")
+        return
+    class_order = _canonical_class_order(df.columns.tolist())
+    if not class_order:
+        print("  [SKIP] no class columns found in confusion_matrix.csv")
+        return
+
+    group_cols = ["branch", "candidate", "checkpoint", "split"]
+    for keys, group in df.groupby(group_cols):
+        branch, candidate, checkpoint, split = keys
+        pivot = group.set_index("true_class").reindex(class_order)
+        if pivot[class_order].isna().all().all():
+            continue
+        counts = pivot[class_order].fillna(0).astype(float).values
+        fig, ax = plt.subplots(figsize=(6.2, 5.4), dpi=DPI)
+        im = ax.imshow(counts, cmap="YlOrRd", aspect="auto")
+        ax.set_xticks(range(len(class_order)))
+        ax.set_xticklabels(class_order, fontsize=11, fontweight="bold")
+        ax.set_yticks(range(len(class_order)))
+        ax.set_yticklabels(class_order, fontsize=11, fontweight="bold")
+        ax.set_xlabel("Predicted Class", fontsize=11)
+        ax.set_ylabel("Ground Truth Class", fontsize=11)
+        ax.set_title(f"{branch} / {candidate} / {checkpoint} / {split}", fontsize=12, fontweight="bold")
+        for row_idx in range(len(class_order)):
+            support = float(pivot["support"].iloc[row_idx]) if "support" in pivot else max(counts[row_idx].sum(), 1.0)
+            for col_idx in range(len(class_order)):
+                count = counts[row_idx, col_idx]
+                pct = (count / support) if support else 0.0
+                color = "white" if count >= counts.max() * 0.55 else "#1E293B"
+                ax.text(
+                    col_idx,
+                    row_idx,
+                    f"{int(count)}\n{pct:.1%}",
+                    ha="center",
+                    va="center",
+                    fontsize=9,
+                    fontweight="bold",
+                    color=color,
+                )
+        fig.colorbar(im, ax=ax, shrink=0.82, pad=0.02, label="Count")
+        fig.tight_layout()
+        out_name = f"cm_{branch}_{candidate}_{checkpoint}_{split}.png".replace("/", "_")
+        _save(fig, P3 / "figures" / "confusion" / out_name)
 
 
 # ===================================================================
@@ -627,7 +791,8 @@ PHASE_FUNCS = {
     1: [f5_architecture_benchmark, f6_one_vs_two_stage, f15_per_class_heatmap],
     2: [f7_lr_sweep, f8_batch_aug_sweep, f9_tuning_summary, f16_imbalance_sweep],
     3: [f10_per_class_metrics, f11_threshold_sweep, f12_error_distribution,
-        f13_error_by_image, f14_training_curves, f17_cross_phase_comparison],
+        f13_error_by_image, f14_training_curves, f17_cross_phase_comparison,
+        f18_confusion_heatmaps],
 }
 
 

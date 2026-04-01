@@ -1,4 +1,5 @@
 {
-  "status": "completed",
-  "completed_utc": "2026-03-27T13:53:23Z"
+  "status": "running",
+  "started_utc": "2026-04-01T14:39:56Z",
+  "from_phase": "phase3"
 }

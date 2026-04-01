@@ -81,8 +81,12 @@ def summarize_phase1() -> str:
                 lines.append(f"- Phase 2 locked model: `{locked_models}`")
             else:
                 lines.append(f"- Phase 2 finalists: `{locked_models}`")
-        if lock.get('final_model'):
-            lines.append(f"- Final model for Phase 3: `{lock['final_model']}`")
+        phase2_locked = lock.get('phase2_locked', {})
+        if phase2_locked.get('selected_model'):
+            lines.append(f"- Phase 2 selected model: `{phase2_locked['selected_model']}`")
+        phase3_locked = lock.get('phase3_locked', {})
+        if phase3_locked.get('candidates'):
+            lines.append(f"- Phase 3 candidates: `{', '.join(phase3_locked['candidates'])}`")
     return '\n'.join([x for x in lines if x])
 
 
@@ -102,8 +106,19 @@ def summarize_phase3() -> str:
     metrics = read_csv_rows(ROOT / 'outputs/phase3/final_metrics.csv')
     if metrics:
         lines.append('\n## Final Metrics Table\n')
-        for row in metrics:
-            lines.append(f"- {row['metric']}: `{row['value']}`")
+        if 'metric' in metrics[0] and 'value' in metrics[0]:
+            for row in metrics:
+                lines.append(f"- {row['metric']}: `{row['value']}`")
+        else:
+            for row in metrics:
+                lines.append(
+                    f"- [{row.get('branch')}] `{row.get('candidate')}` / `{row.get('checkpoint')}` / `{row.get('split')}` | "
+                    f"precision `{row.get('precision')}` | recall `{row.get('recall')}` | "
+                    f"mAP50 `{row.get('map50')}` | weighted F1 `{row.get('weighted_f1')}`"
+                )
+    final_eval = read_text(ROOT / 'outputs/phase3/final_evaluation.md')
+    if final_eval:
+        lines.append('\n' + final_eval)
     deploy = read_text(ROOT / 'outputs/phase3/deploy_check.md')
     if deploy:
         lines.append('\n' + deploy)
@@ -124,10 +139,14 @@ def summarize_artifacts() -> str:
         '`outputs/phase2/tuning_results.csv`',
         '`outputs/phase2/final_hparams.yaml`',
         '`outputs/phase3/final_report.md`',
+        '`outputs/phase3/final_evaluation.md`',
         '`outputs/phase3/final_metrics.csv`',
+        '`outputs/phase3/per_class_metrics.csv`',
         '`outputs/phase3/confusion_matrix.csv`',
         '`outputs/phase3/threshold_sweep.csv`',
         '`outputs/phase3/error_stratification.csv`',
+        '`outputs/phase3/detail/`',
+        '`outputs/phase3/figures/`',
         '`outputs/reports/run_ledger.csv`',
         '`outputs/reports/git_sync_log.md`',
     ]

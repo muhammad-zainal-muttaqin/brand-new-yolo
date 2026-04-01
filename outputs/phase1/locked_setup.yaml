@@ -33,15 +33,66 @@ phase1b_locked:
     aug_profile: medium
   phase1b_gate_map50_pass: false
   phase1b_gate_override_continue: true
-final_model: yolo11m.pt
-final_config:
-  model: yolo11m.pt
-  lr0: 0.001
-  batch: 16
-  imbalance_strategy: none
-  ordinal_strategy: standard
-  aug_profile: medium
-  patience: 10
-  epochs: 30
-  min_epochs: 30
-  imgsz: 640
+phase2_locked:
+  selected_model: yolo11m.pt
+  final_config:
+    model: yolo11m.pt
+    lr0: 0.001
+    batch: 16
+    imbalance_strategy: none
+    ordinal_strategy: standard
+    aug_profile: medium
+    patience: 10
+    epochs: 30
+    min_epochs: 30
+    imgsz: 640
+phase3_locked:
+  contract_version: 2
+  selection_policy: multi_candidate_final_benchmark
+  candidates:
+  - yolo11m.pt
+  - yolov8s.pt
+  one_stage_config:
+    lr0: 0.001
+    batch: 16
+    imbalance_strategy: none
+    ordinal_strategy: standard
+    aug_profile: medium
+    imgsz: 640
+    epochs: 60
+    seed: 42
+    primary_checkpoint: last
+    secondary_checkpoint: best
+    fixed_epochs: true
+    eval_splits:
+    - val
+    - test
+    train_split: train
+  two_stage_config:
+    enabled: true
+    seed: 42
+    stage1:
+      model: yolo11n.pt
+      single_cls: true
+      imgsz: 640
+      epochs: 30
+      batch: 16
+      patience: 10
+      min_epochs: 30
+      lr0: 0.001
+      aug_profile: medium
+    stage2:
+      model: yolo11n-cls.pt
+      imgsz: 224
+      epochs: 30
+      batch: 128
+      patience: 10
+      min_epochs: 30
+      eval_splits:
+      - val
+      - test
+    end_to_end:
+      detector_conf: 0.25
+      eval_splits:
+      - val
+      - test

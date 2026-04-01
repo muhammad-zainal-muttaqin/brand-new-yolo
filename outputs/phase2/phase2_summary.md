@@ -209,4 +209,4 @@ Phase 2 memberikan beberapa insight yang penting meskipun tidak menghasilkan per
 
 ## 10. Langkah berikutnya
 
-Phase 2 menutup pertanyaan "apakah tuning bisa membantu?" dengan jawaban "tidak secara signifikan". Eksperimen lanjut ke Phase 3 untuk retrain final dengan budget lebih besar dan evaluasi di test set. Buka [final_report.md](../phase3/final_report.md).
+Phase 2 menutup pertanyaan "apakah tuning bisa membantu?" dengan jawaban "tidak secara signifikan". Eksperimen lanjut ke Phase 3 untuk benchmark final yang adil: kandidat utama dilatih pada `train`, lalu model yang sama dievaluasi pada `val` dan `test`. Buka [final_report.md](../phase3/final_report.md).

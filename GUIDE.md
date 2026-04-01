@@ -56,8 +56,8 @@ Sumber audit utamanya ada di:
 
 - Python `3.11.15`
 - GPU `NVIDIA A40`
-- `torch`, `ultralytics`, `pandas`, `matplotlib`, `seaborn` tersedia
-- `git lfs` **belum** tersedia
+- `torch`, `ultralytics`, `pandas`, `matplotlib`, `seaborn` tersedia pada environment eksperimen yang sah
+- `git lfs` dibutuhkan untuk restore dataset dari Hugging Face
 
 ### Status fase yang benar-benar selesai
 
@@ -75,7 +75,7 @@ Sumber audit utamanya ada di:
 - Phase 1A selesai. Pipeline final: **`one-stage`**
 - Phase 1B selesai. Model yang di-lock: **`yolo11m.pt`**
 - Phase 2 selesai. Recipe final kembali ke baseline stabil
-- Phase 3 selesai. Weight final aman, deploy check ditandai **deferred**
+- Phase 3 lama sudah ada, tetapi kontraknya sekarang diganti dan perlu dijalankan ulang
 
 ## 3. Override operasional repo ini
 
@@ -155,20 +155,22 @@ Override repo ini: untuk mempercepat eksekusi, **Phase 2 hanya dijalankan pada 1
 
 File [outputs/phase1/locked_setup.yaml](outputs/phase1/locked_setup.yaml) harus memuat:
 
-- model final untuk Phase 3
-- hyperparameter final
-- loss strategy final
-- batch final
-- LR final
-- augmentation final
+- model terpilih tunggal Phase 2
+- hyperparameter final Phase 2
+- kontrak kandidat Phase 3
+- recipe one-stage Phase 3
+- recipe cabang two-stage Phase 3
 
 Hyperparameter final juga harus ditulis di [outputs/phase2/final_hparams.yaml](outputs/phase2/final_hparams.yaml).
 
 ### Pada Phase 3
 
 - wajib membaca [outputs/phase1/locked_setup.yaml](outputs/phase1/locked_setup.yaml)
-- wajib memakai pipeline, resolution, dan model yang sudah di-lock
+- wajib memakai pipeline dan resolution yang sudah di-lock
+- kandidat one-stage Phase 3 boleh lebih dari satu jika itu ditulis eksplisit pada lock file
 - tidak boleh membuka architecture search lagi
+- training one-stage final memakai split `train` saja
+- evaluasi kandidat utama wajib tersedia pada `val` dan `test`
 - deploy/TFLite/INT8 check boleh ditunda setelah `best.pt` aman
 - jika konversi deploy dilakukan nanti, akurasi, ukuran, latency, dan kompatibilitas device wajib divalidasi ulang
 
@@ -221,14 +223,17 @@ outputs/phase2/
 ```text
 outputs/phase3/
 ├── final_metrics.csv
+├── per_class_metrics.csv
 ├── confusion_matrix.csv
 ├── threshold_sweep.csv
 ├── error_stratification.csv
 ├── error_analysis.md
 ├── deploy_check.md
 ├── final_report.md
+├── final_evaluation.md
 ├── final_data.yaml
-└── trainval.txt
+├── detail/
+└── figures/
 ```
 
 ### 5.5 Ledger dan status
@@ -327,17 +332,22 @@ Override operasional yang dipakai di fase ini:
 
 Semua ini harus dibaca bersama [outputs/phase2/phase2_summary.md](outputs/phase2/phase2_summary.md).
 
-### 6.6 Phase 3 — Done
+### 6.6 Phase 3 — Redefined
 
-- [x] membaca [outputs/phase1/locked_setup.yaml](outputs/phase1/locked_setup.yaml)
-- [x] retrain final pada `train+val`
-- [x] override final retrain `60 epoch`, `patience=15`, `min_epochs=60`
-- [x] evaluasi final pada `test`
-- [x] threshold sweep `0.1–0.5`
-- [x] tracking error utama
-- [x] deploy check ditandai **deferred**
-- [x] final `best.pt` diamankan
-- [x] final report ditulis
+- [ ] membaca [outputs/phase1/locked_setup.yaml](outputs/phase1/locked_setup.yaml) versi kontrak baru
+- [ ] restore dataset aktif ke `/workspace/Dataset-Sawit-YOLO`
+- [ ] benchmark one-stage `yolo11m.pt` dan `yolov8s.pt`
+- [ ] training one-stage hanya pada `train`
+- [ ] fixed `60 epoch` tanpa early stopping untuk kandidat utama
+- [ ] evaluasi `last.pt` dan `best.pt` pada `val` dan `test`
+- [ ] rebuild cabang two-stage dari nol
+- [ ] GT-crop dataset dibangun ulang
+- [ ] evaluasi two-stage GT-crop dan end-to-end
+- [ ] confusion matrix penuh 4 kelas digenerate
+- [ ] threshold sweep `0.1–0.5` untuk kandidat one-stage
+- [ ] tracking error utama
+- [ ] deploy check ditandai **deferred**
+- [ ] final report dan final evaluation ditulis ulang
 
 ## 7. Policy otomatisasi
 
@@ -396,7 +406,7 @@ Urutan aksi setelah clone ulang atau audit cepat:
 <!-- AUTOSTATUS:START -->
 - Canonical source synced: [E0.md](E0.md) mengikuti flowchart YOLOBench.
 - Phase 1B selesai dan model Phase 2 sudah dikunci.
-- Phase 2 selesai. Model final untuk Phase 3: `yolo11m.pt`.
-- Config final ditulis ke [outputs/phase1/locked_setup.yaml](outputs/phase1/locked_setup.yaml) dan [outputs/phase2/final_hparams.yaml](outputs/phase2/final_hparams.yaml).
-- Phase 3 selesai. Weight final aman. Deploy check ditandai **deferred**.
+- Phase 2 selesai. Model tunggal terpilih tetap `yolo11m.pt`, tetapi kontrak Phase 3 sudah diganti menjadi multi-candidate benchmark.
+- Config final Phase 2 ditulis ke [outputs/phase1/locked_setup.yaml](outputs/phase1/locked_setup.yaml) dan [outputs/phase2/final_hparams.yaml](outputs/phase2/final_hparams.yaml).
+- Phase 3 harus dijalankan ulang dengan kandidat utama `yolo11m.pt` dan `yolov8s.pt`.
 <!-- AUTOSTATUS:END -->

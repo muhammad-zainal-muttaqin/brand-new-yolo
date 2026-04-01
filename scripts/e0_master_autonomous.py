@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 import base64
 import csv
 import json
@@ -35,8 +36,20 @@ PHASE2_SEEDS = [1, 2]
 PHASE2_CONFIRM_SEED = 3
 PHASE3_FINAL_SEED = 42
 PHASE3_FINAL_EPOCHS = 60
-PHASE3_FINAL_PATIENCE = 15
-PHASE3_FINAL_MIN_EPOCHS = 60
+PHASE3_ONE_STAGE_CANDIDATES = ['yolo11m.pt', 'yolov8s.pt']
+PHASE3_DATASET_HF_URL = 'https://huggingface.co/datasets/ULM-DS-Lab/Dataset-Sawit-YOLO'
+PHASE3_DATASET_ROOT = Path('/workspace/Dataset-Sawit-YOLO')
+PHASE3_STAGE1_MODEL = 'yolo11n.pt'
+PHASE3_STAGE1_EPOCHS = 30
+PHASE3_STAGE1_PATIENCE = 10
+PHASE3_STAGE1_MIN_EPOCHS = 30
+PHASE3_STAGE2_MODEL = 'yolo11n-cls.pt'
+PHASE3_STAGE2_IMGSZ = 224
+PHASE3_STAGE2_EPOCHS = 30
+PHASE3_STAGE2_BATCH = 128
+PHASE3_STAGE2_PATIENCE = 10
+PHASE3_STAGE2_MIN_EPOCHS = 30
+PHASE3_TWO_STAGE_DETECTOR_CONF = 0.25
 PHASE1B_OVERRIDE_IGNORE_MAP70_STOP = True
 PHASE3_DEPLOY_CHECK_DEFERRED = True
 PHASE2_OPTION_C_SKIP_REMAINING_LOSS_BRANCHES = True
@@ -107,6 +120,9 @@ class RunSpec:
     ordinal_strategy: str = 'standard'
     focal_gamma: float = 1.5
     aug_profile: str = 'medium'
+    single_cls: bool = False
+    eval_checkpoint: str = 'best'
+    fixed_epochs: bool = False
 
 
 def utc_now() -> str:
@@ -212,7 +228,7 @@ def read_json(path: Path) -> dict[str, Any]:
 def checkpoint(message: str) -> bool:
     wait_for_external_activity()
     cleanup_downloaded_root_weights()
-    sh(['git', 'add', '--ignore-removal', 'GUIDE.md', 'E0.md', 'CONTEXT.md', 'outputs', 'runs', 'scripts'])
+    sh(['git', 'add', '--ignore-removal', 'README.md', 'GUIDE.md', 'E0.md', 'CONTEXT.md', 'outputs', 'runs', 'scripts'])
     diff = subprocess.run(['git', 'diff', '--cached', '--quiet'], cwd=ROOT)
     if diff.returncode == 0:
         log(f'no changes to commit for checkpoint: {message}')
@@ -222,7 +238,9 @@ def checkpoint(message: str) -> bool:
     with SYNC_LOG.open('a', encoding='utf-8') as f:
         f.write(f'- {utc_now()} | commit {commit_hash} | {message}\n')
     sh(['git', 'add', str(SYNC_LOG.relative_to(ROOT))])
-    sh(['git', 'commit', '--amend', '--no-edit'])
+    diff = subprocess.run(['git', 'diff', '--cached', '--quiet'], cwd=ROOT)
+    if diff.returncode != 0:
+        sh(['git', 'commit', '-m', f'log sync: {message}'])
     token = os.getenv('GITHUB_TOKEN', '')
     auth = base64.b64encode(f'x-access-token:{token}'.encode()).decode()
     for attempt in range(1, 4):
@@ -466,12 +484,12 @@ def confusion_rate(cm, idx_a: int | None, idx_b: int | None) -> float | None:
     return float((cm[idx_a][idx_b] + cm[idx_b][idx_a]) / total)
 
 
-def materialize_eval_snapshot(phase: str, run_name: str, best_weight: str, data: str, split: str, imgsz: int, batch: int, device: str) -> dict[str, Any]:
+def materialize_eval_snapshot(phase: str, run_name: str, weight_path: str, data: str, split: str, imgsz: int, batch: int, device: str) -> dict[str, Any]:
     out = eval_path(phase, run_name)
     if out.exists():
         return read_json(out)
-    best_weight = str(restore_tracked_file(best_weight))
-    model = YOLO(best_weight)
+    weight_path = str(restore_tracked_file(weight_path))
+    model = YOLO(weight_path)
     metrics = model.val(data=data, split=split, imgsz=imgsz, batch=batch, device=device, workers=8, plots=False)
     names = {int(k): v for k, v in metrics.names.items()}
     per_class = []
@@ -522,12 +540,17 @@ def build_command(spec: RunSpec) -> list[str]:
         '--workers', str(spec.workers),
         '--patience', str(spec.patience),
         '--min-epochs', str(spec.min_epochs),
+        '--eval-checkpoint', spec.eval_checkpoint,
         '--imbalance-strategy', spec.imbalance_strategy,
         '--ordinal-strategy', spec.ordinal_strategy,
         '--focal-gamma', str(spec.focal_gamma),
     ]
     if spec.pretrained:
         cmd.append('--pretrained')
+    if spec.single_cls:
+        cmd.append('--single-cls')
+    if spec.fixed_epochs:
+        cmd.append('--fixed-epochs')
     if spec.optimizer:
         cmd += ['--optimizer', spec.optimizer]
     if spec.lr0 is not None:
@@ -548,7 +571,10 @@ def run_experiment(spec: RunSpec) -> dict[str, Any]:
             sh(build_command(spec))
             checkpoint(f'{spec.phase}: add {spec.name}')
     summary = read_json(summary_path(spec.phase, spec.name))
-    materialize_eval_snapshot(spec.phase, spec.name, summary['best_weight'], spec.data, spec.split, spec.imgsz, spec.batch, spec.device)
+    checkpoint_key = 'best_weight' if spec.eval_checkpoint == 'best' else 'last_weight'
+    eval_weight = summary.get(checkpoint_key) or summary.get('best_weight') or summary.get('last_weight')
+    if eval_weight:
+        materialize_eval_snapshot(spec.phase, spec.name, eval_weight, spec.data, spec.split, spec.imgsz, spec.batch, spec.device)
     return summary
 
 
@@ -648,19 +674,93 @@ def validate_phase2_lock(lock: dict[str, Any]) -> None:
         raise RuntimeError('phase2 lock validation: architecture_finalists empty')
 
 
+def build_phase3_lock_contract(lock: dict[str, Any]) -> dict[str, Any]:
+    base_cfg = lock.get('phase2_locked', {}).get('final_config') or lock.get('final_config') or {}
+    if not base_cfg:
+        base_cfg = {
+            'lr0': 0.001,
+            'batch': 16,
+            'imbalance_strategy': 'none',
+            'ordinal_strategy': 'standard',
+            'aug_profile': 'medium',
+            'imgsz': 640,
+        }
+    phase3_locked = lock.get('phase3_locked', {})
+    phase3_locked.setdefault('contract_version', 2)
+    phase3_locked.setdefault('selection_policy', 'multi_candidate_final_benchmark')
+    phase3_locked.setdefault('candidates', PHASE3_ONE_STAGE_CANDIDATES.copy())
+    phase3_locked.setdefault('one_stage_config', {
+        'lr0': float(base_cfg.get('lr0', 0.001)),
+        'batch': int(base_cfg.get('batch', 16)),
+        'imbalance_strategy': base_cfg.get('imbalance_strategy', 'none'),
+        'ordinal_strategy': base_cfg.get('ordinal_strategy', 'standard'),
+        'aug_profile': base_cfg.get('aug_profile', 'medium'),
+        'imgsz': int(base_cfg.get('imgsz', 640)),
+        'epochs': PHASE3_FINAL_EPOCHS,
+        'seed': PHASE3_FINAL_SEED,
+        'primary_checkpoint': 'last',
+        'secondary_checkpoint': 'best',
+        'fixed_epochs': True,
+        'eval_splits': ['val', 'test'],
+        'train_split': 'train',
+    })
+    phase3_locked.setdefault('two_stage_config', {
+        'enabled': True,
+        'seed': PHASE3_FINAL_SEED,
+        'stage1': {
+            'model': PHASE3_STAGE1_MODEL,
+            'single_cls': True,
+            'imgsz': 640,
+            'epochs': PHASE3_STAGE1_EPOCHS,
+            'batch': 16,
+            'patience': PHASE3_STAGE1_PATIENCE,
+            'min_epochs': PHASE3_STAGE1_MIN_EPOCHS,
+            'lr0': 0.001,
+            'aug_profile': 'medium',
+        },
+        'stage2': {
+            'model': PHASE3_STAGE2_MODEL,
+            'imgsz': PHASE3_STAGE2_IMGSZ,
+            'epochs': PHASE3_STAGE2_EPOCHS,
+            'batch': PHASE3_STAGE2_BATCH,
+            'patience': PHASE3_STAGE2_PATIENCE,
+            'min_epochs': PHASE3_STAGE2_MIN_EPOCHS,
+            'eval_splits': ['val', 'test'],
+        },
+        'end_to_end': {
+            'detector_conf': PHASE3_TWO_STAGE_DETECTOR_CONF,
+            'eval_splits': ['val', 'test'],
+        },
+    })
+    lock['phase3_locked'] = phase3_locked
+    lock.pop('final_model', None)
+    lock.pop('final_config', None)
+    return lock
+
+
+def ensure_phase3_lock_contract(persist: bool = False) -> dict[str, Any]:
+    lock = read_lock()
+    validate_phase2_lock(lock)
+    lock = build_phase3_lock_contract(lock)
+    if persist:
+        write_lock(lock)
+    return lock
+
+
 def validate_phase3_lock(lock: dict[str, Any]) -> None:
     validate_phase2_lock(lock)
-    require_lock_keys(lock, ['final_model', 'final_config'], 'phase3 lock validation')
-    finalists = lock['phase1b_locked'].get('architecture_finalists') or []
-    if lock['final_model'] not in finalists:
-        raise RuntimeError('phase3 lock validation: final_model is not part of locked phase1 finalists')
-    cfg = lock['final_config']
-    for key in ['model', 'lr0', 'batch', 'imbalance_strategy', 'ordinal_strategy', 'aug_profile', 'imgsz']:
-        if key not in cfg:
-            raise RuntimeError(f'phase3 lock validation: final_config missing key {key}')
-    if cfg['model'] != lock['final_model']:
-        raise RuntimeError('phase3 lock validation: final_config.model mismatch with final_model lock')
-    if int(cfg['imgsz']) != 640:
+    require_lock_keys(lock, ['phase3_locked'], 'phase3 lock validation')
+    phase3_locked = lock['phase3_locked']
+    candidates = phase3_locked.get('candidates') or []
+    if candidates != PHASE3_ONE_STAGE_CANDIDATES:
+        raise RuntimeError('phase3 lock validation: unexpected candidate list')
+    if any(model not in PHASE1B_MODELS for model in candidates):
+        raise RuntimeError('phase3 lock validation: candidate outside canonical phase1 roster')
+    one_stage = phase3_locked.get('one_stage_config') or {}
+    for key in ['lr0', 'batch', 'imbalance_strategy', 'ordinal_strategy', 'aug_profile', 'imgsz', 'epochs', 'seed']:
+        if key not in one_stage:
+            raise RuntimeError(f'phase3 lock validation: one_stage_config missing key {key}')
+    if int(one_stage['imgsz']) != 640:
         raise RuntimeError('phase3 lock validation: imgsz changed after lock')
 
 
@@ -809,8 +909,8 @@ def phase1b() -> dict[str, Any]:
             'phase1b_gate_map50_pass': gate_pass,
             'phase1b_gate_override_continue': PHASE1B_OVERRIDE_IGNORE_MAP70_STOP,
         },
-        'final_model': lock.get('final_model'),
-        'final_config': lock.get('final_config'),
+        'phase2_locked': lock.get('phase2_locked'),
+        'phase3_locked': lock.get('phase3_locked'),
     })
     write_lock(lock)
 
@@ -1113,14 +1213,18 @@ def phase2() -> dict[str, Any]:
     if best_final['model'] not in lock['phase1b_locked']['architecture_finalists']:
         raise RuntimeError('phase2 final selection is outside locked finalists')
     lock['phase1b_locked']['lock_stage'] = 'phase2_final_model_locked'
-    lock['final_model'] = best_final['model']
-    lock['final_config'] = final_hparams
+    lock['phase2_locked'] = {
+        'selected_model': best_final['model'],
+        'final_config': final_hparams,
+    }
+    lock = build_phase3_lock_contract(lock)
     write_lock(lock)
     guide_lines = [
         '- Canonical source synced: `E0.md` mengikuti flowchart YOLOBench.',
         '- Phase 1B canonical selesai dan finalis Phase 2 sudah terkunci.',
-        f"- Phase 2 selesai. Model final untuk Phase 3: `{best_final['model']}`.",
-        f"- Final config Phase 2 ditulis ke `outputs/phase1/locked_setup.yaml` dan `outputs/phase2/final_hparams.yaml`.",
+        f"- Phase 2 selesai. Model terpilih tunggal tetap `{best_final['model']}` untuk kontrak Phase 2.",
+        "- Kontrak Phase 3 sekarang memakai multi-candidate benchmark: `yolo11m.pt` dan `yolov8s.pt`.",
+        "- Final config Phase 2 dan kontrak kandidat Phase 3 ditulis ke `outputs/phase1/locked_setup.yaml` dan `outputs/phase2/final_hparams.yaml`.",
     ]
     if phase2_override_notes:
         guide_lines.append('- Phase 2 memakai override plateau-aware: sisa branch loss/ordinal dilewati, lalu sweep dilanjutkan hanya untuk LR, batch, dan augmentation dari baseline loss setup.')
@@ -1129,19 +1233,57 @@ def phase2() -> dict[str, Any]:
     return lock
 
 
+def ensure_phase3_dataset() -> Path:
+    required = [
+        PHASE3_DATASET_ROOT / 'images' / 'train',
+        PHASE3_DATASET_ROOT / 'images' / 'val',
+        PHASE3_DATASET_ROOT / 'images' / 'test',
+        PHASE3_DATASET_ROOT / 'labels' / 'train',
+        PHASE3_DATASET_ROOT / 'labels' / 'val',
+        PHASE3_DATASET_ROOT / 'labels' / 'test',
+    ]
+    if all(path.exists() for path in required):
+        return PHASE3_DATASET_ROOT
+    if PHASE3_DATASET_ROOT.exists() and (PHASE3_DATASET_ROOT / '.git').exists():
+        sh(['git', '-C', str(PHASE3_DATASET_ROOT), 'lfs', 'pull'], check=False)
+        if all(path.exists() for path in required):
+            return PHASE3_DATASET_ROOT
+    if PHASE3_DATASET_ROOT.exists():
+        raise RuntimeError(f'dataset root exists but is incomplete: {PHASE3_DATASET_ROOT}')
+    log(f'restoring dataset from {PHASE3_DATASET_HF_URL}')
+    sh(['git', 'clone', PHASE3_DATASET_HF_URL, str(PHASE3_DATASET_ROOT)])
+    sh(['git', '-C', str(PHASE3_DATASET_ROOT), 'lfs', 'pull'], check=False)
+    if not all(path.exists() for path in required):
+        raise RuntimeError(f'dataset restore incomplete at {PHASE3_DATASET_ROOT}')
+    return PHASE3_DATASET_ROOT
+
+
+def phase3_path(*parts: str) -> Path:
+    return ROOT.joinpath('outputs', 'phase3', *parts)
+
+
+def write_json(path: Path, data: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2), encoding='utf-8')
+
+
+def names_from_data_yaml(data_yaml: str) -> list[str]:
+    cfg, _ = load_data_cfg(data_yaml)
+    names = cfg['names']
+    if isinstance(names, dict):
+        return [names[i] for i in sorted(names)]
+    return list(names)
+
+
 def create_phase3_data_yaml() -> Path:
+    ensure_phase3_dataset()
     cfg, yaml_path = load_data_cfg('Dataset-YOLO/data.yaml')
     root = dataset_root(cfg, yaml_path)
     outdir = ROOT / 'outputs/phase3'
     outdir.mkdir(parents=True, exist_ok=True)
-    trainval_txt = outdir / 'trainval.txt'
-    with trainval_txt.open('w', encoding='utf-8') as f:
-        for split in ['train', 'val']:
-            for img in iter_split_images('Dataset-YOLO/data.yaml', split):
-                f.write(str(img) + '\n')
     final_cfg = {
         'path': str(root),
-        'train': str(trainval_txt),
+        'train': 'images/train',
         'val': 'images/val',
         'test': 'images/test',
         'nc': int(cfg['nc']),
@@ -1152,19 +1294,20 @@ def create_phase3_data_yaml() -> Path:
     return final_yaml
 
 
-def threshold_sweep(best_weight: str, data_yaml: str, imgsz: int, batch: int, device: str) -> tuple[list[dict[str, Any]], float]:
-    model = YOLO(best_weight)
+def threshold_sweep(weight_path: str, data_yaml: str, imgsz: int, batch: int, device: str, split: str = 'val') -> tuple[list[dict[str, Any]], float]:
+    model = YOLO(weight_path)
     rows: list[dict[str, Any]] = []
     best_tuple = None
     best_conf = 0.25
     for conf in [0.1, 0.2, 0.3, 0.4, 0.5]:
-        metrics = model.val(data=data_yaml, split='val', imgsz=imgsz, batch=batch, device=device, workers=8, plots=False, conf=conf)
+        metrics = model.val(data=data_yaml, split=split, imgsz=imgsz, batch=batch, device=device, workers=8, plots=False, conf=conf)
         names = {int(k): v for k, v in metrics.names.items()}
         name_to_idx = {v: k for k, v in names.items()}
         cm = metrics.confusion_matrix.matrix
         b2b3 = confusion_rate(cm, name_to_idx.get('B2'), name_to_idx.get('B3'))
         b4_recall = float(metrics.box.class_result(name_to_idx['B4'])[1]) if 'B4' in name_to_idx else None
         row = {
+            'split': split,
             'conf': conf,
             'precision': float(metrics.box.mp),
             'recall': float(metrics.box.mr),
@@ -1174,11 +1317,493 @@ def threshold_sweep(best_weight: str, data_yaml: str, imgsz: int, batch: int, de
             'b4_recall': b4_recall,
         }
         rows.append(row)
-        score_tuple = (row['map50'], -(row['confusion_b2_b3'] if row['confusion_b2_b3'] is not None else 1.0), row['b4_recall'] if row['b4_recall'] is not None else 0.0)
+        score_tuple = (
+            row['map50'],
+            -(row['confusion_b2_b3'] if row['confusion_b2_b3'] is not None else 1.0),
+            row['b4_recall'] if row['b4_recall'] is not None else 0.0,
+        )
         if best_tuple is None or score_tuple > best_tuple:
             best_tuple = score_tuple
             best_conf = conf
     return rows, best_conf
+
+
+def empty_square_matrix(size: int) -> list[list[int]]:
+    return [[0 for _ in range(size)] for _ in range(size)]
+
+
+def safe_div(num: float, den: float) -> float:
+    return float(num / den) if den else 0.0
+
+
+def normalize_rows(matrix: list[list[int]], missed_by_class: list[int]) -> list[dict[str, float]]:
+    rows = []
+    for i, counts in enumerate(matrix):
+        total = sum(counts) + missed_by_class[i]
+        row = {f'pred_{j}': safe_div(counts[j], total) for j in range(len(counts))}
+        row['missed_gt'] = safe_div(missed_by_class[i], total)
+        rows.append(row)
+    return rows
+
+
+def largest_confusion_pairs(matrix: list[list[int]], class_names: list[str], limit: int = 6) -> list[dict[str, Any]]:
+    pairs = []
+    for i, true_name in enumerate(class_names):
+        for j, pred_name in enumerate(class_names):
+            if i == j:
+                continue
+            count = int(matrix[i][j])
+            if count <= 0:
+                continue
+            pairs.append({'true_class': true_name, 'pred_class': pred_name, 'count': count})
+    pairs.sort(key=lambda item: item['count'], reverse=True)
+    return pairs[:limit]
+
+
+def summarize_multiclass_counts(
+    matrix: list[list[int]],
+    missed_by_class: list[int],
+    fp_by_class: list[int],
+    class_names: list[str],
+) -> dict[str, Any]:
+    per_class = []
+    support_total = 0
+    predicted_total = 0
+    tp_total = 0
+    for idx, class_name in enumerate(class_names):
+        tp = int(matrix[idx][idx])
+        support = int(sum(matrix[idx]) + missed_by_class[idx])
+        predicted = int(sum(matrix[row][idx] for row in range(len(class_names))) + fp_by_class[idx])
+        fp = predicted - tp
+        fn = support - tp
+        precision = safe_div(tp, predicted)
+        recall = safe_div(tp, support)
+        f1 = safe_div(2 * precision * recall, precision + recall)
+        per_class.append({
+            'class_idx': idx,
+            'class_name': class_name,
+            'precision': precision,
+            'recall': recall,
+            'f1': f1,
+            'support': support,
+            'predicted': predicted,
+            'true_positive': tp,
+            'false_positive': fp,
+            'false_negative': fn,
+            'missed_gt': int(missed_by_class[idx]),
+        })
+        support_total += support
+        predicted_total += predicted
+        tp_total += tp
+
+    macro_precision = statistics.mean(row['precision'] for row in per_class) if per_class else 0.0
+    macro_recall = statistics.mean(row['recall'] for row in per_class) if per_class else 0.0
+    macro_f1 = statistics.mean(row['f1'] for row in per_class) if per_class else 0.0
+    weighted_precision = safe_div(sum(row['precision'] * row['support'] for row in per_class), support_total)
+    weighted_recall = safe_div(sum(row['recall'] * row['support'] for row in per_class), support_total)
+    weighted_f1 = safe_div(sum(row['f1'] * row['support'] for row in per_class), support_total)
+
+    return {
+        'per_class': per_class,
+        'macro_avg': {'precision': macro_precision, 'recall': macro_recall, 'f1': macro_f1},
+        'weighted_avg': {'precision': weighted_precision, 'recall': weighted_recall, 'f1': weighted_f1},
+        'accuracy': safe_div(tp_total, support_total),
+        'support_total': support_total,
+        'predicted_total': predicted_total,
+        'true_positive_total': tp_total,
+        'missed_gt_total': int(sum(missed_by_class)),
+        'false_positive_total': int(sum(fp_by_class)),
+        'largest_confusions': largest_confusion_pairs(matrix, class_names),
+        'row_normalized': normalize_rows(matrix, missed_by_class),
+    }
+
+
+def categorize_detection_errors(
+    gt_boxes: list[dict[str, Any]],
+    pred_boxes: list[dict[str, Any]],
+    names: dict[int, str],
+    confusions: list[tuple[int, int, float]],
+    missed_gt: list[int],
+    fp_pred: list[int],
+) -> set[str]:
+    categories: set[str] = set()
+    for gi in missed_gt:
+        gt = gt_boxes[gi]
+        if min(gt['width'], gt['height']) < 16:
+            categories.add('small_object_missed')
+        if names.get(gt['cls']) == 'B4':
+            categories.add('B4_missed')
+    for gi, pi, _ in confusions:
+        true_name = names.get(gt_boxes[gi]['cls'], str(gt_boxes[gi]['cls']))
+        pred_name = names.get(pred_boxes[pi]['cls'], str(pred_boxes[pi]['cls']))
+        if {true_name, pred_name} == {'B2', 'B3'}:
+            categories.add('B2_B3_confusion')
+        if {true_name, pred_name} == {'B3', 'B4'}:
+            categories.add('B3_B4_confusion')
+    if fp_pred:
+        categories.add('false_positive')
+    if not categories:
+        categories.add('manual_review')
+    return categories
+
+
+def evaluate_detection_like_split(
+    data_yaml: str,
+    split: str,
+    class_names: list[str],
+    predictor,
+    extra_fields: dict[str, Any] | None = None,
+    limit: int = 20,
+) -> dict[str, Any]:
+    names = {idx: name for idx, name in enumerate(class_names)}
+    matrix = empty_square_matrix(len(class_names))
+    missed_by_class = [0 for _ in class_names]
+    fp_by_class = [0 for _ in class_names]
+    image_rows: list[dict[str, Any]] = []
+
+    for image_path in iter_split_images(data_yaml, split):
+        gt_boxes, _ = load_gt_boxes(image_path)
+        pred_boxes = predictor(image_path)
+        tp, confusions, missed_gt, fp_pred = greedy_match(gt_boxes, pred_boxes, iou_thresh=0.5)
+        for gi, pi, _ in tp:
+            matrix[gt_boxes[gi]['cls']][pred_boxes[pi]['cls']] += 1
+        for gi, pi, _ in confusions:
+            matrix[gt_boxes[gi]['cls']][pred_boxes[pi]['cls']] += 1
+        for gi in missed_gt:
+            missed_by_class[gt_boxes[gi]['cls']] += 1
+        for pi in fp_pred:
+            pred_cls = pred_boxes[pi]['cls']
+            if 0 <= pred_cls < len(class_names):
+                fp_by_class[pred_cls] += 1
+
+        if not confusions and not missed_gt and not fp_pred:
+            continue
+        categories = categorize_detection_errors(gt_boxes, pred_boxes, names, confusions, missed_gt, fp_pred)
+        row = {
+            'image_path': str(image_path),
+            'tp': len(tp),
+            'confusions': len(confusions),
+            'missed_gt': len(missed_gt),
+            'false_positive': len(fp_pred),
+            'error_score': 2 * len(confusions) + 2 * len(missed_gt) + len(fp_pred),
+            'categories': ';'.join(sorted(categories)),
+        }
+        if extra_fields:
+            row.update(extra_fields)
+        image_rows.append(row)
+
+    image_rows.sort(key=lambda x: (x['error_score'], x['confusions'], x['missed_gt'], x['false_positive']), reverse=True)
+    stats = summarize_multiclass_counts(matrix, missed_by_class, fp_by_class, class_names)
+    stats.update({
+        'counts': matrix,
+        'missed_by_class': {class_names[i]: int(v) for i, v in enumerate(missed_by_class)},
+        'false_positive_by_class': {class_names[i]: int(v) for i, v in enumerate(fp_by_class)},
+        'top_errors': image_rows[:limit],
+    })
+    return stats
+
+
+def merge_detection_metrics(per_class_eval: list[dict[str, Any]], confusion_stats: dict[str, Any]) -> list[dict[str, Any]]:
+    eval_by_class = {row['class_name']: row for row in per_class_eval}
+    merged = []
+    for row in confusion_stats['per_class']:
+        extra = eval_by_class.get(row['class_name'], {})
+        merged.append({
+            **row,
+            'map50': extra.get('map50'),
+            'map50_95': extra.get('map50_95'),
+            'ultralytics_precision': extra.get('precision'),
+            'ultralytics_recall': extra.get('recall'),
+        })
+    return merged
+
+
+def evaluate_one_stage_checkpoint(
+    run_name: str,
+    candidate: str,
+    checkpoint: str,
+    weight_path: str,
+    data_yaml: str,
+    split: str,
+    imgsz: int,
+    batch: int,
+    device: str,
+    conf: float,
+) -> dict[str, Any]:
+    model = YOLO(weight_path)
+    metrics = model.val(data=data_yaml, split=split, imgsz=imgsz, batch=batch, device=device, workers=8, plots=False, conf=conf)
+    names = {int(k): v for k, v in metrics.names.items()}
+    class_names = [names[idx] for idx in sorted(names)]
+    per_class_eval = []
+    for idx in sorted(names):
+        p, r, map50, map50_95 = metrics.box.class_result(idx)
+        per_class_eval.append({
+            'class_idx': idx,
+            'class_name': names[idx],
+            'precision': float(p),
+            'recall': float(r),
+            'map50': float(map50),
+            'map50_95': float(map50_95),
+        })
+    custom = evaluate_detection_like_split(
+        data_yaml=data_yaml,
+        split=split,
+        class_names=class_names,
+        predictor=lambda image_path: predict_boxes(model, image_path, imgsz, device, conf),
+        extra_fields={'branch': 'one_stage', 'candidate': candidate, 'checkpoint': checkpoint, 'split': split},
+    )
+    snapshot = {
+        'metric_schema': 'detection',
+        'run_name': run_name,
+        'branch': 'one_stage',
+        'candidate': candidate,
+        'checkpoint': checkpoint,
+        'weight_path': weight_path,
+        'split': split,
+        'optimized_conf': conf,
+        'precision': float(metrics.box.mp),
+        'recall': float(metrics.box.mr),
+        'f1': safe_div(2 * float(metrics.box.mp) * float(metrics.box.mr), float(metrics.box.mp) + float(metrics.box.mr)),
+        'map50': float(metrics.box.map50),
+        'map50_95': float(metrics.box.map),
+        'accuracy': custom['accuracy'],
+        'support_total': custom['support_total'],
+        'predicted_total': custom['predicted_total'],
+        'missed_gt_total': custom['missed_gt_total'],
+        'false_positive_total': custom['false_positive_total'],
+        'macro_avg': custom['macro_avg'],
+        'weighted_avg': custom['weighted_avg'],
+        'per_class': merge_detection_metrics(per_class_eval, custom),
+        'confusion_matrix': {
+            'classes': class_names,
+            'counts': custom['counts'],
+            'row_normalized': custom['row_normalized'],
+            'missed_by_class': custom['missed_by_class'],
+            'false_positive_by_class': custom['false_positive_by_class'],
+            'largest_confusions': custom['largest_confusions'],
+        },
+        'top_errors': custom['top_errors'],
+    }
+    return snapshot
+
+
+def crop_xyxy(image_path: Path, xyxy: tuple[float, float, float, float]) -> Image.Image:
+    with Image.open(image_path) as img:
+        x1, y1, x2, y2 = xyxy
+        x1 = max(int(x1), 0)
+        y1 = max(int(y1), 0)
+        x2 = min(int(x2), img.width)
+        y2 = min(int(y2), img.height)
+        if x2 <= x1 or y2 <= y1:
+            return img.crop((0, 0, img.width, img.height)).copy()
+        return img.crop((x1, y1, x2, y2)).copy()
+
+
+def rebuild_gt_crop_dataset(data_yaml: str, out_root: Path) -> Path:
+    class_names = names_from_data_yaml(data_yaml)
+    manifest = out_root / 'manifest.json'
+    if manifest.exists():
+        return out_root
+    for split in ['train', 'val', 'test']:
+        for class_name in class_names:
+            (out_root / split / class_name).mkdir(parents=True, exist_ok=True)
+        for image_path in iter_split_images(data_yaml, split):
+            gt_boxes, _ = load_gt_boxes(image_path)
+            stem = image_path.stem
+            for idx, gt in enumerate(gt_boxes):
+                class_name = class_names[gt['cls']]
+                crop = crop_xyxy(image_path, gt['xyxy'])
+                crop_path = out_root / split / class_name / f'{stem}__gt{idx}.jpg'
+                crop.save(crop_path, format='JPEG', quality=95)
+    write_json(manifest, {
+        'source_data_yaml': data_yaml,
+        'dataset_root': str(out_root),
+        'class_names': class_names,
+        'splits': ['train', 'val', 'test'],
+    })
+    return out_root
+
+
+def predict_class_idx(model: YOLO, image_path: Path, imgsz: int, device: str) -> tuple[int, list[int]]:
+    result = model.predict(source=str(image_path), imgsz=imgsz, device=device, verbose=False)[0]
+    top1 = int(result.probs.top1)
+    topk = [int(x) for x in getattr(result.probs, 'top5', [top1])]
+    return top1, topk
+
+
+def summarize_classification_confusion(matrix: list[list[int]], class_names: list[str]) -> dict[str, Any]:
+    per_class = []
+    total = sum(sum(row) for row in matrix)
+    tp_total = 0
+    for idx, class_name in enumerate(class_names):
+        tp = int(matrix[idx][idx])
+        support = int(sum(matrix[idx]))
+        predicted = int(sum(matrix[row][idx] for row in range(len(class_names))))
+        precision = safe_div(tp, predicted)
+        recall = safe_div(tp, support)
+        f1 = safe_div(2 * precision * recall, precision + recall)
+        per_class.append({
+            'class_idx': idx,
+            'class_name': class_name,
+            'precision': precision,
+            'recall': recall,
+            'f1': f1,
+            'support': support,
+            'predicted': predicted,
+            'true_positive': tp,
+            'false_positive': predicted - tp,
+            'false_negative': support - tp,
+        })
+        tp_total += tp
+    macro_avg = {
+        'precision': statistics.mean(row['precision'] for row in per_class) if per_class else 0.0,
+        'recall': statistics.mean(row['recall'] for row in per_class) if per_class else 0.0,
+        'f1': statistics.mean(row['f1'] for row in per_class) if per_class else 0.0,
+    }
+    weighted_avg = {
+        'precision': safe_div(sum(row['precision'] * row['support'] for row in per_class), total),
+        'recall': safe_div(sum(row['recall'] * row['support'] for row in per_class), total),
+        'f1': safe_div(sum(row['f1'] * row['support'] for row in per_class), total),
+    }
+    return {
+        'per_class': per_class,
+        'macro_avg': macro_avg,
+        'weighted_avg': weighted_avg,
+        'accuracy': safe_div(tp_total, total),
+        'support_total': total,
+        'row_normalized': normalize_rows(matrix, [0 for _ in class_names]),
+        'largest_confusions': largest_confusion_pairs(matrix, class_names),
+    }
+
+
+def evaluate_gt_crop_classifier(
+    run_name: str,
+    checkpoint: str,
+    weight_path: str,
+    dataset_root: Path,
+    split: str,
+    imgsz: int,
+    device: str,
+) -> dict[str, Any]:
+    model = YOLO(weight_path)
+    class_names = names_from_data_yaml('Dataset-YOLO/data.yaml')
+    matrix = empty_square_matrix(len(class_names))
+    topk_correct = 0
+    total = 0
+    for gt_idx, class_name in enumerate(class_names):
+        class_dir = dataset_root / split / class_name
+        if not class_dir.exists():
+            continue
+        for image_path in sorted(class_dir.glob('*')):
+            if image_path.suffix.lower() not in IMAGE_SUFFIXES:
+                continue
+            pred_idx, topk = predict_class_idx(model, image_path, imgsz, device)
+            matrix[gt_idx][pred_idx] += 1
+            topk_correct += int(gt_idx in topk)
+            total += 1
+    summary = summarize_classification_confusion(matrix, class_names)
+    return {
+        'metric_schema': 'classification_gtcrop',
+        'run_name': run_name,
+        'branch': 'two_stage_gtcrop',
+        'candidate': model_stem(PHASE3_STAGE2_MODEL),
+        'checkpoint': checkpoint,
+        'weight_path': weight_path,
+        'split': split,
+        'top1_acc': summary['accuracy'],
+        'top5_acc': safe_div(topk_correct, total),
+        'precision': summary['weighted_avg']['precision'],
+        'recall': summary['weighted_avg']['recall'],
+        'f1': summary['weighted_avg']['f1'],
+        'accuracy': summary['accuracy'],
+        'support_total': summary['support_total'],
+        'macro_avg': summary['macro_avg'],
+        'weighted_avg': summary['weighted_avg'],
+        'per_class': summary['per_class'],
+        'confusion_matrix': {
+            'classes': class_names,
+            'counts': matrix,
+            'row_normalized': summary['row_normalized'],
+            'largest_confusions': summary['largest_confusions'],
+        },
+    }
+
+
+def classify_crop_from_box(model: YOLO, image_path: Path, xyxy: tuple[float, float, float, float], imgsz: int, device: str) -> int:
+    crop = crop_xyxy(image_path, xyxy)
+    temp_path = image_path.parent / f'.__tmp_{os.getpid()}_{time.time_ns()}.jpg'
+    crop.save(temp_path, format='JPEG', quality=95)
+    try:
+        pred_idx, _ = predict_class_idx(model, temp_path, imgsz, device)
+        return pred_idx
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
+
+
+def evaluate_two_stage_end_to_end(
+    stage1_run_name: str,
+    stage2_run_name: str,
+    checkpoint: str,
+    stage1_weight: str,
+    stage2_weight: str,
+    data_yaml: str,
+    split: str,
+    detector_imgsz: int,
+    classifier_imgsz: int,
+    device: str,
+    conf: float,
+) -> dict[str, Any]:
+    stage1_model = YOLO(stage1_weight)
+    stage2_model = YOLO(stage2_weight)
+    class_names = names_from_data_yaml(data_yaml)
+    custom = evaluate_detection_like_split(
+        data_yaml=data_yaml,
+        split=split,
+        class_names=class_names,
+        predictor=lambda image_path: [
+            {
+                **pred,
+                'cls': classify_crop_from_box(stage2_model, image_path, pred['xyxy'], classifier_imgsz, device),
+            }
+            for pred in predict_boxes(stage1_model, image_path, detector_imgsz, device, conf)
+        ],
+        extra_fields={'branch': 'two_stage_end_to_end', 'candidate': 'detector+classifier', 'checkpoint': checkpoint, 'split': split},
+    )
+    return {
+        'metric_schema': 'detection_like_classification',
+        'run_name': f'{stage1_run_name}+{stage2_run_name}',
+        'branch': 'two_stage_end_to_end',
+        'candidate': 'yolo11n_singlecls+yolo11ncls_gtcrop',
+        'checkpoint': checkpoint,
+        'stage1_weight': stage1_weight,
+        'stage2_weight': stage2_weight,
+        'split': split,
+        'optimized_conf': conf,
+        'precision': safe_div(custom['true_positive_total'], custom['predicted_total']),
+        'recall': safe_div(custom['true_positive_total'], custom['support_total']),
+        'f1': safe_div(
+            2 * safe_div(custom['true_positive_total'], custom['predicted_total']) * safe_div(custom['true_positive_total'], custom['support_total']),
+            safe_div(custom['true_positive_total'], custom['predicted_total']) + safe_div(custom['true_positive_total'], custom['support_total']),
+        ),
+        'accuracy': custom['accuracy'],
+        'support_total': custom['support_total'],
+        'predicted_total': custom['predicted_total'],
+        'missed_gt_total': custom['missed_gt_total'],
+        'false_positive_total': custom['false_positive_total'],
+        'macro_avg': custom['macro_avg'],
+        'weighted_avg': custom['weighted_avg'],
+        'per_class': custom['per_class'],
+        'confusion_matrix': {
+            'classes': class_names,
+            'counts': custom['counts'],
+            'row_normalized': custom['row_normalized'],
+            'missed_by_class': custom['missed_by_class'],
+            'false_positive_by_class': custom['false_positive_by_class'],
+            'largest_confusions': custom['largest_confusions'],
+        },
+        'top_errors': custom['top_errors'],
+    }
 
 
 def final_decision_bucket(map50: float, conf_b2_b3: float | None, all_classes_ge70: bool) -> str:
@@ -1198,169 +1823,472 @@ def write_root_readme_and_checkpoint() -> None:
     checkpoint('write final root README report')
 
 
+def snapshot_metric_row(snapshot: dict[str, Any]) -> dict[str, Any]:
+    macro = snapshot.get('macro_avg') or {}
+    weighted = snapshot.get('weighted_avg') or {}
+    return {
+        'branch': snapshot.get('branch'),
+        'candidate': snapshot.get('candidate'),
+        'checkpoint': snapshot.get('checkpoint'),
+        'split': snapshot.get('split'),
+        'run_name': snapshot.get('run_name'),
+        'metric_schema': snapshot.get('metric_schema'),
+        'weight_path': snapshot.get('weight_path', ''),
+        'optimized_conf': snapshot.get('optimized_conf', ''),
+        'precision': snapshot.get('precision', ''),
+        'recall': snapshot.get('recall', ''),
+        'f1': snapshot.get('f1', ''),
+        'map50': snapshot.get('map50', ''),
+        'map50_95': snapshot.get('map50_95', ''),
+        'top1_acc': snapshot.get('top1_acc', ''),
+        'top5_acc': snapshot.get('top5_acc', ''),
+        'accuracy': snapshot.get('accuracy', ''),
+        'support_total': snapshot.get('support_total', ''),
+        'predicted_total': snapshot.get('predicted_total', ''),
+        'missed_gt_total': snapshot.get('missed_gt_total', ''),
+        'false_positive_total': snapshot.get('false_positive_total', ''),
+        'macro_precision': macro.get('precision', ''),
+        'macro_recall': macro.get('recall', ''),
+        'macro_f1': macro.get('f1', ''),
+        'weighted_precision': weighted.get('precision', ''),
+        'weighted_recall': weighted.get('recall', ''),
+        'weighted_f1': weighted.get('f1', ''),
+    }
+
+
+def snapshot_per_class_rows(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = []
+    for row in snapshot.get('per_class') or []:
+        rows.append({
+            'branch': snapshot.get('branch'),
+            'candidate': snapshot.get('candidate'),
+            'checkpoint': snapshot.get('checkpoint'),
+            'split': snapshot.get('split'),
+            **row,
+        })
+    return rows
+
+
+def snapshot_confusion_rows(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
+    cm = snapshot.get('confusion_matrix') or {}
+    classes = cm.get('classes') or []
+    counts = cm.get('counts') or []
+    row_norm = cm.get('row_normalized') or []
+    missed = cm.get('missed_by_class') or {}
+    rows = []
+    for idx, true_class in enumerate(classes):
+        row = {
+            'branch': snapshot.get('branch'),
+            'candidate': snapshot.get('candidate'),
+            'checkpoint': snapshot.get('checkpoint'),
+            'split': snapshot.get('split'),
+            'true_class': true_class,
+            'missed_gt': missed.get(true_class, 0),
+            'support': int(sum(counts[idx]) + missed.get(true_class, 0)),
+            'norm_missed_gt': (row_norm[idx].get('missed_gt', 0.0) if idx < len(row_norm) else 0.0),
+        }
+        for jdx, pred_class in enumerate(classes):
+            row[pred_class] = int(counts[idx][jdx])
+            row[f'norm_{pred_class}'] = row_norm[idx].get(f'pred_{jdx}', 0.0) if idx < len(row_norm) else 0.0
+        rows.append(row)
+    return rows
+
+
+def write_phase3_reports(metric_rows: list[dict[str, Any]], error_rows: list[dict[str, Any]]) -> None:
+    def find_rows(**filters) -> list[dict[str, Any]]:
+        out = []
+        for row in metric_rows:
+            if all(str(row.get(k)) == str(v) for k, v in filters.items()):
+                out.append(row)
+        return out
+
+    one_stage_last_test = sorted(
+        find_rows(branch='one_stage', checkpoint='last', split='test'),
+        key=lambda row: float(row.get('map50') or 0.0),
+        reverse=True,
+    )
+    one_stage_last_val = {
+        row['candidate']: row
+        for row in find_rows(branch='one_stage', checkpoint='last', split='val')
+    }
+    two_stage_gtcrop_test = find_rows(branch='two_stage_gtcrop', checkpoint='last', split='test')
+    two_stage_e2e_test = find_rows(branch='two_stage_end_to_end', checkpoint='last', split='test')
+
+    report_lines = [
+        '# Final Report - Phase 3 Multi-Candidate Benchmark',
+        '',
+        f'- Canonical protocol source: `{CANONICAL_SOURCE}`',
+        '- Phase 3 ini menimpa definisi lama dan sekarang mengikuti split adil: training hanya `train`, evaluasi pada `val` dan `test`.',
+        '- Kandidat utama one-stage: `yolo11m.pt` dan `yolov8s.pt`.',
+        '- Checkpoint utama untuk pelaporan final: `last.pt`; `best.pt` tetap ikut dievaluasi.',
+        '- Cabang two-stage di-run ulang sebagai pembanding pendukung: Stage-1 single-class detector, Stage-2 GT-crop classifier, dan evaluasi end-to-end.',
+        '',
+        '## One-Stage Test Set — `last.pt`',
+        '',
+    ]
+    for row in one_stage_last_test:
+        report_lines.append(
+            f"- `{row['candidate']}` | mAP50 `{float(row.get('map50') or 0.0):.4f}` | "
+            f"mAP50-95 `{float(row.get('map50_95') or 0.0):.4f}` | precision `{float(row.get('precision') or 0.0):.4f}` | "
+            f"recall `{float(row.get('recall') or 0.0):.4f}` | conf `{row.get('optimized_conf', '')}`"
+        )
+    report_lines.extend(['', '## Gap Val vs Test — `last.pt`', ''])
+    for row in one_stage_last_test:
+        val_row = one_stage_last_val.get(row['candidate'])
+        if not val_row:
+            continue
+        report_lines.append(
+            f"- `{row['candidate']}` | mAP50 val `{float(val_row.get('map50') or 0.0):.4f}` -> test `{float(row.get('map50') or 0.0):.4f}` | "
+            f"precision val `{float(val_row.get('precision') or 0.0):.4f}` -> test `{float(row.get('precision') or 0.0):.4f}` | "
+            f"recall val `{float(val_row.get('recall') or 0.0):.4f}` -> test `{float(row.get('recall') or 0.0):.4f}`"
+        )
+    if two_stage_gtcrop_test:
+        report_lines.extend(['', '## Two-Stage GT-Crop (`last.pt`, test)', ''])
+        for row in two_stage_gtcrop_test:
+            report_lines.append(
+                f"- top1 `{float(row.get('top1_acc') or 0.0):.4f}` | weighted F1 `{float(row.get('weighted_f1') or 0.0):.4f}` | macro F1 `{float(row.get('macro_f1') or 0.0):.4f}`"
+            )
+    if two_stage_e2e_test:
+        report_lines.extend(['', '## Two-Stage End-to-End (`last.pt`, test)', ''])
+        for row in two_stage_e2e_test:
+            report_lines.append(
+                f"- precision `{float(row.get('precision') or 0.0):.4f}` | recall `{float(row.get('recall') or 0.0):.4f}` | "
+                f"F1 `{float(row.get('f1') or 0.0):.4f}` | accuracy `{float(row.get('accuracy') or 0.0):.4f}`"
+            )
+    phase3_root = ROOT / 'outputs' / 'phase3'
+    (phase3_root / 'final_report.md').write_text('\n'.join(report_lines) + '\n', encoding='utf-8')
+
+    eval_lines = [
+        '# Final Evaluation — Phase 3',
+        '',
+        'Dokumen ini memuat ringkasan evaluasi teknis hasil otomasi ulang Phase 3 sesuai `GUIDE.md`: train-only benchmark, dual-candidate one-stage, dan cabang two-stage yang dibangun ulang.',
+        '',
+        '## Source of truth',
+        '',
+        '- `outputs/phase3/final_metrics.csv`',
+        '- `outputs/phase3/per_class_metrics.csv`',
+        '- `outputs/phase3/confusion_matrix.csv`',
+        '- `outputs/phase3/threshold_sweep.csv`',
+        '- `outputs/phase3/error_stratification.csv`',
+        '',
+        '## Kandidat One-Stage',
+        '',
+    ]
+    for row in one_stage_last_test:
+        eval_lines.append(
+            f"- `{row['candidate']}` (`last`, test): mAP50 `{float(row.get('map50') or 0.0):.4f}`, mAP50-95 `{float(row.get('map50_95') or 0.0):.4f}`, "
+            f"precision `{float(row.get('precision') or 0.0):.4f}`, recall `{float(row.get('recall') or 0.0):.4f}`, weighted F1 `{float(row.get('weighted_f1') or 0.0):.4f}`"
+        )
+    if two_stage_gtcrop_test or two_stage_e2e_test:
+        eval_lines.extend(['', '## Cabang Two-Stage', ''])
+        for row in two_stage_gtcrop_test:
+            eval_lines.append(
+                f"- GT-crop classifier (`last`, test): top1 `{float(row.get('top1_acc') or 0.0):.4f}`, weighted F1 `{float(row.get('weighted_f1') or 0.0):.4f}`"
+            )
+        for row in two_stage_e2e_test:
+            eval_lines.append(
+                f"- End-to-end (`last`, test): precision `{float(row.get('precision') or 0.0):.4f}`, recall `{float(row.get('recall') or 0.0):.4f}`, F1 `{float(row.get('f1') or 0.0):.4f}`"
+            )
+    (phase3_root / 'final_evaluation.md').write_text('\n'.join(eval_lines) + '\n', encoding='utf-8')
+
+    error_lines = ['# Error Analysis', '']
+    if error_rows:
+        grouped: dict[tuple[str, str, str, str], dict[str, int]] = {}
+        for row in error_rows:
+            key = (str(row.get('branch')), str(row.get('candidate')), str(row.get('checkpoint')), str(row.get('split')))
+            grouped.setdefault(key, {})
+            for cat in str(row.get('categories', '')).split(';'):
+                if not cat:
+                    continue
+                grouped[key][cat] = grouped[key].get(cat, 0) + 1
+        for key, counts in sorted(grouped.items()):
+            branch, candidate, checkpoint, split = key
+            error_lines.append(f'- `{branch}` / `{candidate}` / `{checkpoint}` / `{split}`')
+            for cat, count in sorted(counts.items(), key=lambda item: item[1], reverse=True):
+                error_lines.append(f'  - {cat}: `{count}` image')
+    else:
+        error_lines.append('- Belum ada error stratification.')
+    (phase3_root / 'error_analysis.md').write_text('\n'.join(error_lines) + '\n', encoding='utf-8')
+
+
 def phase3() -> None:
     log('phase3 start')
-    lock = read_lock()
+    ensure_phase3_dataset()
+    lock = ensure_phase3_lock_contract(persist=True)
     validate_phase3_lock(lock)
-    final_model = lock['final_model']
-    final_cfg = lock['final_config']
     data_yaml = create_phase3_data_yaml()
-    final_name = f'p3_final_{model_stem(final_model)}_640_s{PHASE3_FINAL_SEED}_e{PHASE3_FINAL_EPOCHS}p{PHASE3_FINAL_PATIENCE}m{PHASE3_FINAL_MIN_EPOCHS}'
-    spec = RunSpec(
-        phase='phase3',
-        name=final_name,
-        model=final_model,
-        imgsz=640,
-        epochs=PHASE3_FINAL_EPOCHS,
-        batch=int(final_cfg['batch']),
-        seed=PHASE3_FINAL_SEED,
-        split='test',
-        patience=PHASE3_FINAL_PATIENCE,
-        min_epochs=PHASE3_FINAL_MIN_EPOCHS,
-        data=str(data_yaml),
-        lr0=float(final_cfg['lr0']),
-        optimizer='AdamW',
-        imbalance_strategy=final_cfg['imbalance_strategy'],
-        ordinal_strategy=final_cfg['ordinal_strategy'],
-        aug_profile=final_cfg['aug_profile'],
-    )
-    summary = run_experiment(spec)
-    materialize_eval_snapshot('phase3', final_name, summary['best_weight'], str(data_yaml), 'test', 640, int(final_cfg['batch']), '0')
-    sweep_rows, best_conf = threshold_sweep(summary['best_weight'], str(data_yaml), 640, int(final_cfg['batch']), '0')
-    write_csv(ROOT / 'outputs/phase3/threshold_sweep.csv', sweep_rows)
+    phase3_locked = lock['phase3_locked']
+    one_stage_cfg = phase3_locked['one_stage_config']
+    metric_rows: list[dict[str, Any]] = []
+    per_class_rows: list[dict[str, Any]] = []
+    confusion_rows: list[dict[str, Any]] = []
+    threshold_rows: list[dict[str, Any]] = []
+    error_rows: list[dict[str, Any]] = []
+    tracked_weights: list[str] = []
 
-    model = YOLO(summary['best_weight'])
-    metrics = model.val(data=str(data_yaml), split='test', imgsz=640, batch=int(final_cfg['batch']), device='0', workers=8, plots=False, conf=best_conf)
-    names = {int(k): v for k, v in metrics.names.items()}
-    name_to_idx = {v: k for k, v in names.items()}
-    cm = metrics.confusion_matrix.matrix
-    conf_b2_b3 = confusion_rate(cm, name_to_idx.get('B2'), name_to_idx.get('B3'))
-    per_class = []
-    for idx in sorted(names):
-        p, r, map50, map50_95 = metrics.box.class_result(idx)
-        per_class.append({'class_name': names[idx], 'precision': float(p), 'recall': float(r), 'map50': float(map50), 'map50_95': float(map50_95)})
-    all_classes_ge70 = all(row['map50'] >= 0.70 for row in per_class)
-    decision = final_decision_bucket(float(metrics.box.map50), conf_b2_b3, all_classes_ge70)
+    phase3_path('detail').mkdir(parents=True, exist_ok=True)
+    phase3_path('figures').mkdir(parents=True, exist_ok=True)
 
-    write_csv(ROOT / 'outputs/phase3/final_metrics.csv', [
-        {'metric': 'optimized_conf', 'value': best_conf},
-        {'metric': 'precision', 'value': float(metrics.box.mp)},
-        {'metric': 'recall', 'value': float(metrics.box.mr)},
-        {'metric': 'map50', 'value': float(metrics.box.map50)},
-        {'metric': 'map50_95', 'value': float(metrics.box.map)},
-        {'metric': 'confusion_b2_b3', 'value': conf_b2_b3},
-        {'metric': 'all_classes_ge70_ap50', 'value': all_classes_ge70},
-    ], fieldnames=['metric', 'value'])
+    for model_name in phase3_locked['candidates']:
+        candidate = model_stem(model_name)
+        run_name = f'p3os_{candidate}_640_s{one_stage_cfg["seed"]}_e{one_stage_cfg["epochs"]}fix'
+        spec = RunSpec(
+            phase='phase3',
+            name=run_name,
+            model=model_name,
+            imgsz=int(one_stage_cfg['imgsz']),
+            epochs=int(one_stage_cfg['epochs']),
+            batch=int(one_stage_cfg['batch']),
+            seed=int(one_stage_cfg['seed']),
+            split='val',
+            patience=0,
+            min_epochs=0,
+            data=str(data_yaml),
+            lr0=float(one_stage_cfg['lr0']),
+            optimizer='AdamW',
+            imbalance_strategy=one_stage_cfg['imbalance_strategy'],
+            ordinal_strategy=one_stage_cfg['ordinal_strategy'],
+            aug_profile=one_stage_cfg['aug_profile'],
+            eval_checkpoint='last',
+            fixed_epochs=bool(one_stage_cfg['fixed_epochs']),
+        )
+        summary = run_experiment(spec)
+        tracked_weights.extend([summary.get('best_weight', ''), summary.get('last_weight', '')])
+        detail_dir = phase3_path('detail', 'one_stage', candidate)
+        detail_dir.mkdir(parents=True, exist_ok=True)
 
-    cm_rows = []
-    ordered_names = [names[i] for i in sorted(names)] + ['background']
-    for i, true_name in enumerate(ordered_names):
-        row = {'true_class': true_name}
-        for j, pred_name in enumerate(ordered_names):
-            row[pred_name] = float(cm[i][j])
-        cm_rows.append(row)
-    write_csv(ROOT / 'outputs/phase3/confusion_matrix.csv', cm_rows)
+        for checkpoint in ['last', 'best']:
+            weight_path = summary.get(f'{checkpoint}_weight')
+            if not weight_path:
+                continue
+            sweep_rows, best_conf = threshold_sweep(weight_path, str(data_yaml), int(one_stage_cfg['imgsz']), int(one_stage_cfg['batch']), '0', split='val')
+            for row in sweep_rows:
+                row.update({'branch': 'one_stage', 'candidate': candidate, 'checkpoint': checkpoint, 'run_name': run_name})
+            threshold_rows.extend(sweep_rows)
+            write_csv(detail_dir / f'{checkpoint}_threshold_sweep.csv', sweep_rows)
+            for split in one_stage_cfg['eval_splits']:
+                snapshot = evaluate_one_stage_checkpoint(
+                    run_name=run_name,
+                    candidate=candidate,
+                    checkpoint=checkpoint,
+                    weight_path=weight_path,
+                    data_yaml=str(data_yaml),
+                    split=split,
+                    imgsz=int(one_stage_cfg['imgsz']),
+                    batch=int(one_stage_cfg['batch']),
+                    device='0',
+                    conf=best_conf,
+                )
+                write_json(detail_dir / f'{checkpoint}_{split}_eval.json', snapshot)
+                metric_rows.append(snapshot_metric_row(snapshot))
+                per_class_rows.extend(snapshot_per_class_rows(snapshot))
+                confusion_rows.extend(snapshot_confusion_rows(snapshot))
+                error_rows.extend(snapshot.get('top_errors') or [])
+
+    two_stage_cfg = phase3_locked['two_stage_config']
+    if two_stage_cfg.get('enabled'):
+        stage1_cfg = two_stage_cfg['stage1']
+        stage2_cfg = two_stage_cfg['stage2']
+        gtcrop_root = rebuild_gt_crop_dataset(str(data_yaml), Path('/workspace/phase3_cls_gtcrops'))
+
+        stage1_name = f'p3ts_stage1_singlecls_{model_stem(stage1_cfg["model"])}_640_s{two_stage_cfg["seed"]}_e{stage1_cfg["epochs"]}p{stage1_cfg["patience"]}m{stage1_cfg["min_epochs"]}'
+        stage1_spec = RunSpec(
+            phase='phase3',
+            name=stage1_name,
+            model=stage1_cfg['model'],
+            imgsz=int(stage1_cfg['imgsz']),
+            epochs=int(stage1_cfg['epochs']),
+            batch=int(stage1_cfg['batch']),
+            seed=int(two_stage_cfg['seed']),
+            split='val',
+            patience=int(stage1_cfg['patience']),
+            min_epochs=int(stage1_cfg['min_epochs']),
+            data=str(data_yaml),
+            lr0=float(stage1_cfg['lr0']),
+            optimizer='AdamW',
+            aug_profile=stage1_cfg['aug_profile'],
+            single_cls=bool(stage1_cfg['single_cls']),
+            eval_checkpoint='last',
+        )
+        stage1_summary = run_experiment(stage1_spec)
+        tracked_weights.extend([stage1_summary.get('best_weight', ''), stage1_summary.get('last_weight', '')])
+
+        stage1_detail_dir = phase3_path('detail', 'two_stage', 'stage1')
+        stage1_detail_dir.mkdir(parents=True, exist_ok=True)
+        for checkpoint in ['last', 'best']:
+            weight_path = stage1_summary.get(f'{checkpoint}_weight')
+            if not weight_path:
+                continue
+            model = YOLO(weight_path)
+            for split in ['val', 'test']:
+                metrics = model.val(
+                    data=str(data_yaml),
+                    split=split,
+                    imgsz=int(stage1_cfg['imgsz']),
+                    batch=int(stage1_cfg['batch']),
+                    device='0',
+                    workers=8,
+                    plots=False,
+                    single_cls=True,
+                )
+                snapshot = {
+                    'metric_schema': 'single_class_detection',
+                    'run_name': stage1_name,
+                    'branch': 'two_stage_stage1',
+                    'candidate': model_stem(stage1_cfg['model']),
+                    'checkpoint': checkpoint,
+                    'weight_path': weight_path,
+                    'split': split,
+                    'precision': float(metrics.box.mp),
+                    'recall': float(metrics.box.mr),
+                    'f1': safe_div(2 * float(metrics.box.mp) * float(metrics.box.mr), float(metrics.box.mp) + float(metrics.box.mr)),
+                    'map50': float(metrics.box.map50),
+                    'map50_95': float(metrics.box.map),
+                }
+                write_json(stage1_detail_dir / f'{checkpoint}_{split}_eval.json', snapshot)
+                metric_rows.append(snapshot_metric_row(snapshot))
+
+        stage2_name = f'p3ts_stage2_cls_{model_stem(stage2_cfg["model"])}_{stage2_cfg["imgsz"]}_s{two_stage_cfg["seed"]}_e{stage2_cfg["epochs"]}p{stage2_cfg["patience"]}m{stage2_cfg["min_epochs"]}'
+        stage2_spec = RunSpec(
+            phase='phase3',
+            name=stage2_name,
+            model=stage2_cfg['model'],
+            imgsz=int(stage2_cfg['imgsz']),
+            epochs=int(stage2_cfg['epochs']),
+            batch=int(stage2_cfg['batch']),
+            seed=int(two_stage_cfg['seed']),
+            split='val',
+            task='classify',
+            patience=int(stage2_cfg['patience']),
+            min_epochs=int(stage2_cfg['min_epochs']),
+            data=str(gtcrop_root),
+            optimizer='AdamW',
+            eval_checkpoint='last',
+        )
+        stage2_summary = run_experiment(stage2_spec)
+        tracked_weights.extend([stage2_summary.get('best_weight', ''), stage2_summary.get('last_weight', '')])
+
+        stage2_detail_dir = phase3_path('detail', 'two_stage', 'gtcrop')
+        stage2_detail_dir.mkdir(parents=True, exist_ok=True)
+        for checkpoint in ['last', 'best']:
+            weight_path = stage2_summary.get(f'{checkpoint}_weight')
+            if not weight_path:
+                continue
+            for split in stage2_cfg['eval_splits']:
+                snapshot = evaluate_gt_crop_classifier(
+                    run_name=stage2_name,
+                    checkpoint=checkpoint,
+                    weight_path=weight_path,
+                    dataset_root=gtcrop_root,
+                    split=split,
+                    imgsz=int(stage2_cfg['imgsz']),
+                    device='0',
+                )
+                write_json(stage2_detail_dir / f'{checkpoint}_{split}_eval.json', snapshot)
+                metric_rows.append(snapshot_metric_row(snapshot))
+                per_class_rows.extend(snapshot_per_class_rows(snapshot))
+                confusion_rows.extend(snapshot_confusion_rows(snapshot))
+
+        e2e_detail_dir = phase3_path('detail', 'two_stage', 'end_to_end')
+        e2e_detail_dir.mkdir(parents=True, exist_ok=True)
+        for checkpoint in ['last', 'best']:
+            stage1_weight = stage1_summary.get(f'{checkpoint}_weight')
+            stage2_weight = stage2_summary.get(f'{checkpoint}_weight')
+            if not stage1_weight or not stage2_weight:
+                continue
+            for split in two_stage_cfg['end_to_end']['eval_splits']:
+                snapshot = evaluate_two_stage_end_to_end(
+                    stage1_run_name=stage1_name,
+                    stage2_run_name=stage2_name,
+                    checkpoint=checkpoint,
+                    stage1_weight=stage1_weight,
+                    stage2_weight=stage2_weight,
+                    data_yaml=str(data_yaml),
+                    split=split,
+                    detector_imgsz=int(stage1_cfg['imgsz']),
+                    classifier_imgsz=int(stage2_cfg['imgsz']),
+                    device='0',
+                    conf=float(two_stage_cfg['end_to_end']['detector_conf']),
+                )
+                write_json(e2e_detail_dir / f'{checkpoint}_{split}_eval.json', snapshot)
+                metric_rows.append(snapshot_metric_row(snapshot))
+                per_class_rows.extend(snapshot_per_class_rows(snapshot))
+                confusion_rows.extend(snapshot_confusion_rows(snapshot))
+                error_rows.extend(snapshot.get('top_errors') or [])
+
+    metric_rows.sort(key=lambda row: (row['branch'], row['candidate'], row['checkpoint'], row['split']))
+    per_class_rows.sort(key=lambda row: (row['branch'], row['candidate'], row['checkpoint'], row['split'], row['class_name']))
+    confusion_rows.sort(key=lambda row: (row['branch'], row['candidate'], row['checkpoint'], row['split'], row['true_class']))
+    threshold_rows.sort(key=lambda row: (row['candidate'], row['checkpoint'], float(row['conf'])))
+    error_rows.sort(key=lambda row: (row.get('branch', ''), row.get('candidate', ''), row.get('checkpoint', ''), row.get('split', ''), -int(row.get('error_score', 0))))
+
+    write_csv(phase3_path('final_metrics.csv'), metric_rows)
+    write_csv(phase3_path('per_class_metrics.csv'), per_class_rows)
+    write_csv(phase3_path('confusion_matrix.csv'), confusion_rows)
+    write_csv(phase3_path('threshold_sweep.csv'), threshold_rows)
+    write_csv(phase3_path('error_stratification.csv'), error_rows)
 
     deploy_lines = ['# Deploy Check', '']
     if PHASE3_DEPLOY_CHECK_DEFERRED:
         deploy_lines.append('- Status: **deferred by repo override**.')
         deploy_lines.append('- TFLite export: `skipped for now`')
         deploy_lines.append('- TFLite INT8 export: `skipped for now`')
-        deploy_lines.append('- Rationale: amankan final `best.pt` dan validasi metrik eksperimen lebih dulu; konversi deploy boleh dilakukan belakangan sebagai langkah engineering terpisah.')
-        deploy_lines.append('- Important: jika nanti dikonversi ke TFLite / INT8 / format lain, akurasi, ukuran, latency, dan kompatibilitas hardware **wajib divalidasi ulang** pada artefak hasil konversi itu.')
-    else:
-        try:
-            export_fp = model.export(format='tflite', imgsz=640)
-            export_fp = Path(export_fp)
-            deploy_lines.append(f'- TFLite export: `{export_fp}`')
-            deploy_lines.append(f'- TFLite size MB: `{export_fp.stat().st_size / (1024*1024):.2f}`')
-        except Exception as e:
-            deploy_lines.append(f'- TFLite export failed: `{type(e).__name__}: {e}`')
-        try:
-            export_int8 = model.export(format='tflite', imgsz=640, int8=True, data='Dataset-YOLO/data.yaml')
-            export_int8 = Path(export_int8)
-            deploy_lines.append(f'- TFLite INT8 export: `{export_int8}`')
-            deploy_lines.append(f'- TFLite INT8 size MB: `{export_int8.stat().st_size / (1024*1024):.2f}`')
-        except Exception as e:
-            deploy_lines.append(f'- TFLite INT8 export failed: `{type(e).__name__}: {e}`')
-    deploy_lines.append(f'- Best weight size MB: `{Path(summary["best_weight"]).stat().st_size / (1024*1024):.2f}`')
-    deploy_lines.append('- Inference viability nyata di tablet tetap perlu pengujian hardware terpisah bila device tersedia.')
-    (ROOT / 'outputs/phase3/deploy_check.md').write_text('\n'.join(deploy_lines) + '\n', encoding='utf-8')
+        deploy_lines.append('- Rationale: Phase 3 ini memprioritaskan benchmark adil, dokumentasi, dan sinkronisasi artefak sebelum deployment engineering.')
+        deploy_lines.append('- Important: konversi deployment wajib divalidasi ulang terhadap artefak hasil konversi.')
+    for weight_path in sorted({path for path in tracked_weights if path}):
+        weight_file = Path(weight_path)
+        if weight_file.exists():
+            deploy_lines.append(f'- Weight: `{weight_file}` | size MB `{weight_file.stat().st_size / (1024 * 1024):.2f}`')
+    (phase3_path('deploy_check.md')).write_text('\n'.join(deploy_lines) + '\n', encoding='utf-8')
 
-    error_rows = build_error_stratification(
-        best_weight=summary['best_weight'],
-        data_yaml=str(data_yaml),
-        split='test',
-        imgsz=640,
-        device='0',
-        conf=best_conf,
-        limit=20,
-        out_csv=ROOT / 'outputs/phase3/error_stratification.csv',
-        extra_fields={'run_name': final_name},
-    )
-    error_lines = ['# Error Analysis', '']
-    error_lines.append(f'- Optimized confidence threshold: `{best_conf}`')
-    error_lines.append(f'- Confusion B2/B3: `{conf_b2_b3}`')
-    error_lines.append(f'- All classes >= 0.70 AP50: `{all_classes_ge70}`')
-    error_lines.append('- Worst-20 image stratification tersedia pada `outputs/phase3/error_stratification.csv`.')
-    if error_rows:
-        category_counts: dict[str, int] = {}
-        for row in error_rows:
-            for cat in str(row['categories']).split(';'):
-                if cat:
-                    category_counts[cat] = category_counts.get(cat, 0) + 1
-        for cat, count in sorted(category_counts.items(), key=lambda x: x[1], reverse=True):
-            error_lines.append(f'- {cat}: `{count}` image')
-    (ROOT / 'outputs/phase3/error_analysis.md').write_text('\n'.join(error_lines) + '\n', encoding='utf-8')
-
-    report_lines = [
-        '# Final Report',
-        '',
-        f'- Canonical protocol source: `{CANONICAL_SOURCE}`',
-        f'- Final model: `{final_model}`',
-        f'- Resolution: `640`',
-        f'- Optimized confidence threshold: `{best_conf}`',
-        f'- Precision: `{float(metrics.box.mp):.4f}`',
-        f'- Recall: `{float(metrics.box.mr):.4f}`',
-        f'- mAP50: `{float(metrics.box.map50):.4f}`',
-        f'- mAP50-95: `{float(metrics.box.map):.4f}`',
-        f'- Confusion B2/B3: `{conf_b2_b3}`',
-        f'- All classes >= 70% AP50: `{all_classes_ge70}`',
-        f'- Decision bucket: **{decision}**',
-        f'- Deploy check in this run: `{ "deferred" if PHASE3_DEPLOY_CHECK_DEFERRED else "executed" }`',
-        '',
-        'Per semantic mapping repo ini:',
-        '- `B1 = buah merah, besar, bulat, posisi paling bawah tandan; paling matang / ripe`',
-        '- `B2 = buah masih hitam namun mulai transisi ke merah, sudah besar dan bulat, posisi di atas B1`',
-        '- `B3 = buah full hitam, masih berduri, masih lonjong, posisi di atas B2`',
-        '- `B4 = buah paling kecil, paling dalam di batang/tandan, sulit terlihat, masih banyak duri, hitam sampai hijau, dan masih bisa berkembang lebih besar; paling belum matang`',
-    ]
-    (ROOT / 'outputs/phase3/final_report.md').write_text('\n'.join(report_lines) + '\n', encoding='utf-8')
+    write_phase3_reports(metric_rows, error_rows)
+    sh([sys.executable, 'scripts/generate_doc_figures.py', '--phase', '3'])
+    sh([sys.executable, 'scripts/generate_e0_research_progress_charts.py'])
 
     update_guide_status([
         '- Canonical source synced: `E0.md` mengikuti flowchart YOLOBench.',
-        f'- Phase 3 selesai menggunakan model final `{final_model}`.',
-        f'- Final report tersedia di `outputs/phase3/final_report.md` dengan bucket `{decision}`.',
-        '- Mapping label repo tetap dikunci: `B1 -> B2 -> B3 -> B4` dari paling matang ke paling belum matang, lengkap dengan ciri visual/posisionalnya.',
+        '- Phase 3 sekarang ditimpa sebagai benchmark otomatis multi-candidate dengan split adil (`train` -> `val` + `test`).',
+        '- Kandidat utama one-stage yang dijalankan: `yolo11m.pt` dan `yolov8s.pt`.',
+        '- Cabang two-stage dibangun ulang: single-class detector, GT-crop classifier, dan evaluasi end-to-end.',
+        '- Artefak Phase 3 baru tersedia di `outputs/phase3/` dan detail per-branch ada di `outputs/phase3/detail/`.',
     ])
     checkpoint('phase3 canonical sync complete')
 
 
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser()
+    p.add_argument('--from-phase', choices=['phase1b', 'phase2', 'phase3'], default='phase1b')
+    p.add_argument('--skip-root-readme', action='store_true')
+    return p.parse_args()
+
+
 def main() -> None:
+    args = parse_args()
     log('master orchestrator started')
-    write_state({'status': 'running', 'started_utc': utc_now()})
+    write_state({'status': 'running', 'started_utc': utc_now(), 'from_phase': args.from_phase})
     cleanup_downloaded_root_weights()
-    phase1b()
-    phase2()
-    phase3()
-    write_root_readme_and_checkpoint()
-    write_state({'status': 'completed', 'completed_utc': utc_now()})
+    if args.from_phase == 'phase1b':
+        phase1b()
+        phase2()
+        phase3()
+    elif args.from_phase == 'phase2':
+        phase2()
+        phase3()
+    else:
+        phase3()
+    if not args.skip_root_readme:
+        write_root_readme_and_checkpoint()
+    write_state({'status': 'completed', 'completed_utc': utc_now(), 'from_phase': args.from_phase})
     log('master orchestrator completed')
 
 
 if __name__ == '__main__':
     try:
         main()
+    except KeyboardInterrupt as e:
+        write_state({'status': 'aborted', 'failed_utc': utc_now(), 'error': 'KeyboardInterrupt'})
+        log('FATAL KeyboardInterrupt: orchestration interrupted')
+        raise
     except Exception as e:
         write_state({'status': 'failed', 'failed_utc': utc_now(), 'error': f'{type(e).__name__}: {e}'})
         log(f'FATAL {type(e).__name__}: {e}')

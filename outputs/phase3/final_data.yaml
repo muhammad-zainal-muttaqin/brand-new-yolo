@@ -1,5 +1,5 @@
 path: /workspace/Dataset-Sawit-YOLO
-train: /workspace/brand-new-yolo/outputs/phase3/trainval.txt
+train: images/train
 val: images/val
 test: images/test
 nc: 4
