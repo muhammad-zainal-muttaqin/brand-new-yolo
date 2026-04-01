@@ -573,7 +573,7 @@ def run_experiment(spec: RunSpec) -> dict[str, Any]:
     summary = read_json(summary_path(spec.phase, spec.name))
     checkpoint_key = 'best_weight' if spec.eval_checkpoint == 'best' else 'last_weight'
     eval_weight = summary.get(checkpoint_key) or summary.get('best_weight') or summary.get('last_weight')
-    if eval_weight:
+    if eval_weight and spec.task == 'detect':
         materialize_eval_snapshot(spec.phase, spec.name, eval_weight, spec.data, spec.split, spec.imgsz, spec.batch, spec.device)
     return summary
 
@@ -2057,20 +2057,20 @@ def phase3() -> None:
         detail_dir = phase3_path('detail', 'one_stage', candidate)
         detail_dir.mkdir(parents=True, exist_ok=True)
 
-        for checkpoint in ['last', 'best']:
-            weight_path = summary.get(f'{checkpoint}_weight')
+        for checkpoint_name in ['last', 'best']:
+            weight_path = summary.get(f'{checkpoint_name}_weight')
             if not weight_path:
                 continue
             sweep_rows, best_conf = threshold_sweep(weight_path, str(data_yaml), int(one_stage_cfg['imgsz']), int(one_stage_cfg['batch']), '0', split='val')
             for row in sweep_rows:
-                row.update({'branch': 'one_stage', 'candidate': candidate, 'checkpoint': checkpoint, 'run_name': run_name})
+                row.update({'branch': 'one_stage', 'candidate': candidate, 'checkpoint': checkpoint_name, 'run_name': run_name})
             threshold_rows.extend(sweep_rows)
-            write_csv(detail_dir / f'{checkpoint}_threshold_sweep.csv', sweep_rows)
+            write_csv(detail_dir / f'{checkpoint_name}_threshold_sweep.csv', sweep_rows)
             for split in one_stage_cfg['eval_splits']:
                 snapshot = evaluate_one_stage_checkpoint(
                     run_name=run_name,
                     candidate=candidate,
-                    checkpoint=checkpoint,
+                    checkpoint=checkpoint_name,
                     weight_path=weight_path,
                     data_yaml=str(data_yaml),
                     split=split,
@@ -2079,7 +2079,7 @@ def phase3() -> None:
                     device='0',
                     conf=best_conf,
                 )
-                write_json(detail_dir / f'{checkpoint}_{split}_eval.json', snapshot)
+                write_json(detail_dir / f'{checkpoint_name}_{split}_eval.json', snapshot)
                 metric_rows.append(snapshot_metric_row(snapshot))
                 per_class_rows.extend(snapshot_per_class_rows(snapshot))
                 confusion_rows.extend(snapshot_confusion_rows(snapshot))
@@ -2115,8 +2115,8 @@ def phase3() -> None:
 
         stage1_detail_dir = phase3_path('detail', 'two_stage', 'stage1')
         stage1_detail_dir.mkdir(parents=True, exist_ok=True)
-        for checkpoint in ['last', 'best']:
-            weight_path = stage1_summary.get(f'{checkpoint}_weight')
+        for checkpoint_name in ['last', 'best']:
+            weight_path = stage1_summary.get(f'{checkpoint_name}_weight')
             if not weight_path:
                 continue
             model = YOLO(weight_path)
@@ -2136,7 +2136,7 @@ def phase3() -> None:
                     'run_name': stage1_name,
                     'branch': 'two_stage_stage1',
                     'candidate': model_stem(stage1_cfg['model']),
-                    'checkpoint': checkpoint,
+                    'checkpoint': checkpoint_name,
                     'weight_path': weight_path,
                     'split': split,
                     'precision': float(metrics.box.mp),
@@ -2145,7 +2145,7 @@ def phase3() -> None:
                     'map50': float(metrics.box.map50),
                     'map50_95': float(metrics.box.map),
                 }
-                write_json(stage1_detail_dir / f'{checkpoint}_{split}_eval.json', snapshot)
+                write_json(stage1_detail_dir / f'{checkpoint_name}_{split}_eval.json', snapshot)
                 metric_rows.append(snapshot_metric_row(snapshot))
 
         stage2_name = f'p3ts_stage2_cls_{model_stem(stage2_cfg["model"])}_{stage2_cfg["imgsz"]}_s{two_stage_cfg["seed"]}_e{stage2_cfg["epochs"]}p{stage2_cfg["patience"]}m{stage2_cfg["min_epochs"]}'
@@ -2170,37 +2170,37 @@ def phase3() -> None:
 
         stage2_detail_dir = phase3_path('detail', 'two_stage', 'gtcrop')
         stage2_detail_dir.mkdir(parents=True, exist_ok=True)
-        for checkpoint in ['last', 'best']:
-            weight_path = stage2_summary.get(f'{checkpoint}_weight')
+        for checkpoint_name in ['last', 'best']:
+            weight_path = stage2_summary.get(f'{checkpoint_name}_weight')
             if not weight_path:
                 continue
             for split in stage2_cfg['eval_splits']:
                 snapshot = evaluate_gt_crop_classifier(
                     run_name=stage2_name,
-                    checkpoint=checkpoint,
+                    checkpoint=checkpoint_name,
                     weight_path=weight_path,
                     dataset_root=gtcrop_root,
                     split=split,
                     imgsz=int(stage2_cfg['imgsz']),
                     device='0',
                 )
-                write_json(stage2_detail_dir / f'{checkpoint}_{split}_eval.json', snapshot)
+                write_json(stage2_detail_dir / f'{checkpoint_name}_{split}_eval.json', snapshot)
                 metric_rows.append(snapshot_metric_row(snapshot))
                 per_class_rows.extend(snapshot_per_class_rows(snapshot))
                 confusion_rows.extend(snapshot_confusion_rows(snapshot))
 
         e2e_detail_dir = phase3_path('detail', 'two_stage', 'end_to_end')
         e2e_detail_dir.mkdir(parents=True, exist_ok=True)
-        for checkpoint in ['last', 'best']:
-            stage1_weight = stage1_summary.get(f'{checkpoint}_weight')
-            stage2_weight = stage2_summary.get(f'{checkpoint}_weight')
+        for checkpoint_name in ['last', 'best']:
+            stage1_weight = stage1_summary.get(f'{checkpoint_name}_weight')
+            stage2_weight = stage2_summary.get(f'{checkpoint_name}_weight')
             if not stage1_weight or not stage2_weight:
                 continue
             for split in two_stage_cfg['end_to_end']['eval_splits']:
                 snapshot = evaluate_two_stage_end_to_end(
                     stage1_run_name=stage1_name,
                     stage2_run_name=stage2_name,
-                    checkpoint=checkpoint,
+                    checkpoint=checkpoint_name,
                     stage1_weight=stage1_weight,
                     stage2_weight=stage2_weight,
                     data_yaml=str(data_yaml),
@@ -2210,7 +2210,7 @@ def phase3() -> None:
                     device='0',
                     conf=float(two_stage_cfg['end_to_end']['detector_conf']),
                 )
-                write_json(e2e_detail_dir / f'{checkpoint}_{split}_eval.json', snapshot)
+                write_json(e2e_detail_dir / f'{checkpoint_name}_{split}_eval.json', snapshot)
                 metric_rows.append(snapshot_metric_row(snapshot))
                 per_class_rows.extend(snapshot_per_class_rows(snapshot))
                 confusion_rows.extend(snapshot_confusion_rows(snapshot))

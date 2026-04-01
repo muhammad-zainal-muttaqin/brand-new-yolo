@@ -1,175 +1,335 @@
-# Brand New YOLO — Deteksi Kematangan Buah Sawit
+# Brand New YOLO — E0 End-to-End Report
 
-Repo ini mendokumentasikan eksperimen E0: membangun baseline detector kematangan buah kelapa sawit menggunakan YOLO. Task-nya adalah mendeteksi dan mengklasifikasikan buah sawit ke dalam 4 tingkat kematangan (B1–B4) pada satu tandan, dalam satu shot — tanpa pipeline multi-stage.
+Repositori ini memuat eksekusi **E0 Baseline Experimental Protocol** untuk task deteksi tingkat kematangan tandan buah sawit 4 kelas pada dataset aktif repo ini.
 
-Eksperimen berjalan dalam 4 fase yang sequential: validasi dataset → pemilihan pipeline & arsitektur → hyperparameter tuning → retrain final dan evaluasi. Setiap fase menghasilkan keputusan yang di-lock dan dibawa ke fase berikutnya, sehingga pipeline secara keseluruhan reproducible dan traceable.
+## Canonical Protocol Source
+- `E0.md`
+- `https://github.com/muhammad-zainal-muttaqin/YOLOBench/blob/main/E0_Protocol_Flowchart.html`
 
-Hasil akhir: model `yolo11m.pt` pada resolusi 640 menghasilkan **mAP50 = 0.4677** pada test set. B1 (matang) terdeteksi dengan baik (mAP50 = 0.78), tapi B4 (belum matang) masih sangat sulit (mAP50 = 0.27). Baseline ini solid dan terdokumentasi, tapi belum production-ready.
+## Root Semantic Mapping Used in This Repo
+- `B1`: buah **merah**, **besar**, **bulat**, posisi **paling bawah** pada tandan → **paling matang / ripe**
+- `B2`: buah masih **hitam** namun mulai **transisi ke merah**, sudah **besar** dan **bulat**, posisi **di atas B1**
+- `B3`: buah **full hitam**, masih **berduri**, masih **lonjong**, posisi **di atas B2**
+- `B4`: buah **paling kecil**, **paling dalam di batang/tandan**, sulit terlihat, masih banyak **duri**, warna **hitam sampai hijau**, masih bisa berkembang lebih besar → **paling belum matang**
 
----
+Urutan biologis yang dipakai konsisten di repo ini adalah: **`B1 -> B2 -> B3 -> B4` = paling matang ke paling belum matang**.
 
-## Definisi kelas
+## Orchestrator Status
+- Status orchestrator: `failed`
+- Error: `TypeError: 'str' object is not callable`
 
-Repo ini membedakan 4 tingkat kematangan buah sawit berdasarkan visual appearance dan posisi di tandan:
+## Phase 0 — Validation & Calibration
 
-- **B1** — buah **merah**, **besar**, **bulat**, posisi **paling bawah** pada tandan → **paling matang**
-- **B2** — buah masih **hitam**, mulai **transisi ke merah**, sudah **besar** dan **bulat**, posisi **di atas B1**
-- **B3** — buah **full hitam**, masih **berduri**, masih **lonjong**, posisi **di atas B2**
-- **B4** — buah **paling kecil**, **paling dalam di tandan**, sulit terlihat, masih banyak **duri**, warna **hitam sampai hijau** → **paling belum matang**
+# Phase 0 Summary
 
-Urutan biologis: **B1 → B2 → B3 → B4 = paling matang ke paling mentah**.
+Phase 0 menjawab tiga pertanyaan fundamental sebelum training dimulai: apakah dataset cukup bersih, resolusi kerja mana yang paling masuk akal, dan apakah volume data yang ada sudah cukup atau masih bisa ditambah.
 
-Mapping ini konsisten di seluruh repo: [E0.md](E0.md), [GUIDE.md](GUIDE.md), [CONTEXT.md](CONTEXT.md), [locked_setup.yaml](outputs/phase1/locked_setup.yaml).
+Audit dataset mentah ada di [eda_report.md](eda_report.md). Untuk keputusan fase selanjutnya, lanjut ke [phase1_summary.md](../phase1/phase1_summary.md).
 
----
+## Sumber data
 
-## Keputusan akhir & angka resmi
+- [dataset_audit.json](dataset_audit.json) — hasil audit otomatis
+- [eda_report.md](eda_report.md) — EDA lengkap
+- [resolution_sweep.csv](resolution_sweep.csv) — perbandingan resolusi 640 vs 1024
+- [learning_curve.csv](learning_curve.csv) — kurva belajar pada fraksi data 25%-100%
+- [locked_setup.yaml](../phase1/locked_setup.yaml) — lock file yang membawa keputusan Phase 0 ke fase selanjutnya
 
-Sebelum masuk ke narasi per fase, berikut keputusan dan angka final yang di-lock:
+## 1. Validasi dataset
 
-| Komponen | Keputusan |
+| Item | Nilai |
 |---|---|
-| Pipeline | `one-stage` |
-| Model | `yolo11m.pt` |
-| Resolusi | `640` |
-| Recipe | `lr0=0.001`, `batch=16`, `imbalance=none`, `ordinal=standard`, `aug=medium` |
-| Run final | `p3_final_yolo11m_640_s42_e60p15m60` |
-| Weight | [best.pt](runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/best.pt) |
+| Total images | **3,992** |
+| Total labels | **3,992** |
+| Total instances | **17,987** |
+| Split | train **2,764** / val **604** / test **624** |
+| Empty-label images | **83** |
+| Invalid issues | **0** |
+| Group overlap antar split | **0** |
 
-**Metrik resmi test set** (sumber: [eval.json](outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json)):
+Dataset lolos audit dasar tanpa blocker teknis. Detail distribusi kelas dan geometri bounding box dibahas di [eda_report.md](eda_report.md) — intinya, B3 mendominasi (46%) dan B4 punya ukuran terkecil, dua fakta yang akan terus relevan di sepanjang eksperimen.
 
-| Metrik | Nilai |
-|---|---:|
-| Precision | 0.4763 |
-| Recall | 0.5538 |
-| mAP50 | 0.4677 |
-| mAP50-95 | 0.2215 |
-| All classes AP50 ≥ 0.70 | **False** |
+## 2. Resolution sweep
 
----
+Pertanyaan ini penting karena resolusi langsung mempengaruhi dua hal: kemampuan model mendeteksi objek kecil (terutama B4), dan biaya komputasi per run. Kita membandingkan 640 vs 1024 pada model yolo11n dengan 2 seed.
 
-## Perjalanan eksperimen: dari data mentah ke baseline final
+| imgsz | seed | mAP50 | mAP50-95 | precision | recall |
+|---:|---:|---:|---:|---:|---:|
+| 640 | 1 | 0.5237 | 0.2538 | 0.4906 | 0.5864 |
+| 1024 | 1 | 0.5363 | 0.2571 | 0.4888 | 0.6016 |
+| 640 | 2 | 0.5245 | 0.2514 | 0.4923 | 0.5838 |
+| 1024 | 2 | 0.5276 | 0.2589 | 0.4952 | 0.6004 |
 
-### Progres keseluruhan
+**Mean per resolusi:**
+- `640`: mAP50 = 0.5241, mAP50-95 = 0.2526
+- `1024`: mAP50 = 0.5320, mAP50-95 = 0.2580
+- Relative gain 1024 vs 640 pada mAP50-95: **+2.15%**
 
-Empat chart di bawah merangkum evolusi metrik di seluruh run yang dijalankan, dari Phase 0 sampai Phase 3. Setiap titik adalah satu training run; garis step menunjukkan running best.
+![Perbandingan resolusi 640 vs 1024](figures/p0_resolution_comparison.png)
 
-![mAP50 across all runs](outputs/figures/e0_research_progress_map50.png)
+Gain 2.15% itu memang ada, tapi konteksnya perlu dilihat: setiap run di 1024 memakan hampir 2.5× lebih banyak VRAM dan waktu training dibanding 640. Dalam pipeline E0 yang menjalankan puluhan run (benchmark 11 arsitektur × 2 seed, tuning sweeps, dsb.), pilihan 1024 akan menggandakan total compute budget tanpa jaminan bahwa gain kecil ini akan bertahan saat arsitektur dan hyperparameter berubah.
 
-![mAP50-95 across all runs](outputs/figures/e0_research_progress_map50_95.png)
+Sesuai aturan di [E0.md](../../E0.md), gain 2-5% tidak otomatis mengunci resolusi yang lebih tinggi — keputusan harus mempertimbangkan efisiensi keseluruhan pipeline. Karena itu, **resolusi kerja di-lock pada 640** dan dibawa ke semua fase selanjutnya melalui [locked_setup.yaml](../phase1/locked_setup.yaml).
 
-![Precision across all runs](outputs/figures/e0_research_progress_precision.png)
+## 3. Learning curve @ 640
 
-![Recall across all runs](outputs/figures/e0_research_progress_recall.png)
+Learning curve dijalankan untuk melihat apakah volume data saat ini sudah cukup, atau menambah data masih bisa memberikan gain yang signifikan.
 
-Dari chart di atas terlihat bahwa setelah Phase 1B (benchmark arsitektur), peningkatan metrik mulai plateau. Phase 2 (tuning) dan Phase 3 (retrain final) tidak menghasilkan lompatan — mereka mengonfirmasi bahwa ceiling performa sudah tercapai pada konfigurasi ini.
+| Fraction | mAP50 | mAP50-95 | Precision | Recall |
+|---:|---:|---:|---:|---:|
+| 25% | 0.4444 | 0.1984 | 0.4187 | 0.5758 |
+| 50% | 0.4637 | 0.2202 | 0.4410 | 0.5791 |
+| 75% | 0.5033 | 0.2444 | 0.4683 | 0.5906 |
+| 100% | 0.5237 | 0.2538 | 0.4906 | 0.5864 |
 
-Sumber data: [run_ledger.csv](outputs/reports/run_ledger.csv). Komponen interaktif: [yolo_e0_research_progress.jsx](yolo_e0_research_progress.jsx).
+![Learning curve — mAP vs fraksi data](figures/p0_learning_curve.png)
 
----
+Kenaikan mAP50-95 antar step:
+- 25% → 50%: **+0.0217**
+- 50% → 75%: **+0.0243**
+- 75% → 100%: **+0.0093**
 
-### Phase 0 — Dataset & resolusi kerja
+Polanya menarik. Dari 25% ke 75%, gain per step relatif konsisten (~0.02). Tapi dari 75% ke 100%, gain tiba-tiba mengecil ke kurang dari setengahnya (0.009). Ini menunjukkan awal dari diminishing returns — model masih belajar sesuatu dari data tambahan, tapi rate-nya sudah melambat.
 
-> Detail lengkap: [eda_report.md](outputs/phase0/eda_report.md) · [phase0_summary.md](outputs/phase0/phase0_summary.md)
+Apakah ini berarti menambah data tidak berguna? Tidak juga. Kurva belum benar-benar plateau (masih naik), jadi menambah data berkualitas — terutama untuk kelas underrepresented seperti B1 dan B4 — kemungkinan masih bisa membantu. Tapi menambah data secara acak tanpa memperhatikan distribusi kelas mungkin hanya memberi diminishing returns yang semakin kecil.
 
-Phase 0 memvalidasi dataset dan memilih resolusi kerja. Dataset terdiri dari **3,992 image** dengan **17,987 instance** buah sawit, dibagi ke train (2,764), val (604), dan test (624). Audit otomatis tidak menemukan blocker: tidak ada label yang invalid, tidak ada leakage antar split.
+## 4. Keputusan akhir Phase 0
 
-#### Distribusi kelas
+Phase 0 menutup tiga hal penting:
 
-![Distribusi kelas](outputs/phase0/figures/eda_class_distribution.png)
+1. **Dataset cukup bersih untuk baseline.** Tidak ada leakage, tidak ada label invalid, split sudah terisolasi dengan benar. Bukan dataset sempurna, tapi cukup untuk membangun baseline yang jujur.
 
-Distribusi sangat tidak merata — B3 mendominasi dengan 46% dari seluruh instance, sementara B1 hanya 12%. Ini bukan kebetulan: secara biologis, buah di tahap B3 memang paling banyak ditemukan di tandan. Implikasinya, model akan terekspos B3 hampir 4× lebih sering dari B1 selama training, yang bisa menyebabkan bias prediksi ke arah majority class.
+2. **Resolusi kerja = 640.** Gain dari 1024 terlalu kecil (2.15%) relatif terhadap peningkatan compute cost. Di skala pipeline E0 dengan puluhan run, 640 adalah pilihan yang paling realistis.
 
-#### Ukuran bounding box
+3. **Data belum saturasi, tapi diminishing returns sudah mulai terlihat.** Menambah data secara targeted (bukan random) masih bisa membantu, terutama untuk kelas B1 dan B4 yang underrepresented.
 
-![Ukuran bbox per kelas](outputs/phase0/figures/eda_bbox_size_comparison.png)
+## 5. Langkah berikutnya
 
-Ada gradasi ukuran yang konsisten dari B1 ke B4 — mencerminkan tahap biologis. B4 (median area 0.0072 normalized) hampir 2× lebih kecil dari B1 (0.0140). Kombinasi ukuran kecil + posisi tersembunyi membuat B4 menjadi kelas tersulit di sepanjang eksperimen.
+Setelah Phase 0 mengonfirmasi bahwa dataset dan resolusi sudah ter-lock, eksperimen lanjut ke Phase 1A untuk memilih pipeline (one-stage vs two-stage). Buka [phase1_summary.md](../phase1/phase1_summary.md).
 
-Sumber: [class_distribution.csv](outputs/phase0/class_distribution.csv), [bbox_stats.csv](outputs/phase0/bbox_stats.csv), [dataset_audit.json](outputs/phase0/dataset_audit.json)
+## Phase 1 — Pipeline Decision + Architecture Sweep
 
-#### Resolution sweep: 640 vs 1024
+# Phase 1 Summary
 
-![Perbandingan resolusi](outputs/phase0/figures/p0_resolution_comparison.png)
+Phase 1 menjawab dua pertanyaan besar: pipeline mana yang paling realistis untuk task 4-kelas ini (one-stage vs two-stage), dan arsitektur mana yang paling stabil di pipeline yang menang. Keduanya dijalankan dalam kondisi terkontrol — resolusi, batch, augmentation, dan seed sudah di-lock dari Phase 0.
 
-Resolusi 1024 memang sedikit lebih baik (mAP50-95: 0.258 vs 0.253), tapi gain-nya hanya **+2.15%** — sementara compute cost-nya hampir 2.5× lebih berat. Dalam pipeline E0 dengan puluhan run, 640 adalah pilihan yang paling realistis.
+Dasar keputusan resolusi dan dataset ada di [phase0_summary.md](../phase0/phase0_summary.md). Hasil tuning di [phase2_summary.md](../phase2/phase2_summary.md).
 
-**Keputusan: resolusi kerja = 640.**
+## Sumber data
 
-#### Learning curve
+- [one_stage_results.csv](one_stage_results.csv) — hasil one-stage baseline
+- [two_stage_results.csv](two_stage_results.csv) — hasil two-stage per komponen
+- [architecture_benchmark.csv](architecture_benchmark.csv) — benchmark 11 arsitektur
+- [phase1b_top3.csv](phase1b_top3.csv) — top-3 model
+- [locked_setup.yaml](locked_setup.yaml) — lock file Phase 1
 
-![Learning curve](outputs/phase0/figures/p0_learning_curve.png)
+## 1. Input dari Phase 0
 
-Kurva belajar menunjukkan gain yang konsisten dari 25% ke 75% data (~+0.02 mAP50-95 per step), tapi melambat drastis dari 75% ke 100% (+0.009). Dataset belum benar-benar saturasi, tapi diminishing returns sudah mulai terlihat — menambah data secara random tanpa memperhatikan distribusi kelas kemungkinan hanya memberi gain kecil.
+Phase 1 membawa dua lock dari Phase 0:
+- Resolusi kerja: **640**
+- Dataset aktif: [Dataset-YOLO/data.yaml](../../Dataset-YOLO/data.yaml)
 
-Sumber: [resolution_sweep.csv](outputs/phase0/resolution_sweep.csv), [learning_curve.csv](outputs/phase0/learning_curve.csv)
+Semua perbandingan di Phase 1 menggunakan konfigurasi yang identik supaya hasilnya apple-to-apple.
 
----
+## 2. Phase 1A — Keputusan pipeline
 
-### Phase 1A — One-stage vs two-stage
+### One-stage baseline
 
-> Detail lengkap: [phase1_summary.md](outputs/phase1/phase1_summary.md)
+Dari [one_stage_results.csv](one_stage_results.csv), one-stage detector (yolo11n, 4-class) menghasilkan:
 
-Phase 1A membandingkan dua pipeline: one-stage (satu YOLO detector langsung 4-class) vs two-stage (detector single-class + classifier pada crops).
+- Mean mAP50: **0.5241**
+- Mean mAP50-95: **0.2526**
+- Variance antar seed sangat kecil (±0.001)
 
-![One-stage vs two-stage](outputs/phase1/figures/p1_one_vs_two_stage.png)
+### Two-stage feasibility
 
-Stage-2 classifier pada **ground-truth crops** (kondisi ideal, tanpa noise dari detector) hanya mencapai top-1 accuracy **63.8%**. Yang lebih penting, confusion matrix-nya menunjukkan masalah fundamental:
+Dari [two_stage_results.csv](two_stage_results.csv), pipeline two-stage terdiri dari:
+
+- **Stage-1**: single-class detector (mendeteksi "buah sawit" tanpa membedakan kelas) → mean mAP50-95: **0.3850**
+- **Stage-2**: classifier pada ground-truth crops → mean top-1 accuracy: **63.8%**
+
+Penting: stage-2 diukur pada **ground-truth crops**, bukan prediksi stage-1. Artinya, 63.8% itu adalah *upper bound* — performa end-to-end pasti lebih rendah karena stage-1 tidak sempurna.
+
+![Perbandingan one-stage vs two-stage](figures/p1_one_vs_two_stage.png)
+
+### Kenapa two-stage tidak dipilih
+
+Alasan utama bukan karena angka overall two-stage lebih rendah — itu sudah expected karena pipeline lebih panjang. Alasan yang sebenarnya ada di **confusion matrix stage-2 classifier** pada GT crops:
 
 | | Prediksi B2 | Prediksi B3 |
 |---|---:|---:|
-| GT B2 | 211 (correct) | **94 → B3** (31%) |
-| GT B3 | **334 → B2** (23%) | 1,112 (correct) |
+| Ground truth B2 | 211 (correct) | **94** (confused → B3) |
+| Ground truth B3 | **334** (confused → B2) | 1,112 (correct) |
 
-Bahkan pada kondisi ideal (crop sempurna dari GT box), classifier tidak bisa membedakan B2 dan B3 secara reliable. Menambahkan complexity pipeline two-stage tidak menyelesaikan masalah fundamental ini — one-stage detector yang langsung mengoptimasi 4-class detection setidaknya bisa memanfaatkan konteks spasial (posisi relatif dalam tandan) yang hilang saat objek di-crop.
+Bahkan saat objek sudah dipotong sempurna menggunakan bounding box ground truth — menghilangkan semua noise dari background dan lokalisasi — classifier masih salah mengklasifikasikan B2 sebagai B3 pada **31% kasus** (94 dari 305). Lebih parah lagi, B3 salah jadi B2 pada 23% kasus (334 dari 1,446).
 
-**Keputusan: pipeline one-stage.**
+Ini adalah temuan yang krusial. Kalau classifier tidak bisa membedakan B2 dan B3 bahkan pada kondisi ideal (GT crops), menambahkan complexity dua pipeline tidak akan menyelesaikan masalah fundamental ini. One-stage detector yang langsung mengoptimasi 4-class detection setidaknya bisa memanfaatkan konteks spasial (posisi relatif dalam tandan, ukuran relatif antar buah) yang hilang saat objek dipotong menjadi crop individual.
 
-Sumber: [one_stage_results.csv](outputs/phase1/one_stage_results.csv), [two_stage_results.csv](outputs/phase1/two_stage_results.csv)
+> **Keputusan: pipeline `one-stage`.**
+
+## 3. Phase 1B — Benchmark arsitektur
+
+Setelah pipeline di-lock, 11 arsitektur YOLO di-benchmark dalam kondisi identik: resolusi 640, `lr0=0.001`, `batch=16`, augmentasi medium, 2 seed per model.
+
+### Ranking lengkap
+
+![Architecture benchmark — ranking by mAP50](figures/p1_architecture_benchmark.png)
+
+### Top-3
+
+Dari [phase1b_top3.csv](phase1b_top3.csv):
+
+| Rank | Model | Mean mAP50 | Mean mAP50-95 | Mean B4 Recall |
+|---:|---|---:|---:|---:|
+| 1 | `yolo11m.pt` | 0.5298 | 0.2570 | 0.367 |
+| 2 | `yolov9c.pt` | 0.5292 | 0.2518 | 0.352 |
+| 3 | `yolov8s.pt` | 0.5256 | 0.2521 | 0.411 |
+
+Ada beberapa hal menarik dari benchmark ini:
+
+**Gap antar model teratas sangat kecil.** Selisih yolo11m dan yolov9c hanya 0.0006 mAP50 — nyaris dalam margin of error. Ini menandakan bahwa di task dan dataset ini, bottleneck performa bukan di pilihan arsitektur model, tapi di task difficulty dan data quality itu sendiri. Ganti model family dari YOLOv8 ke YOLO11 ke YOLOv9 tidak menghasilkan lompatan performa.
+
+**yolov8s punya B4 recall tertinggi** (0.411) meskipun overall mAP50-nya lebih rendah. Ini menarik — model yang lebih kecil (s-variant) kadang lebih baik mendeteksi objek kecil karena feature map-nya tidak terlalu ter-downsample. Tapi keunggulan ini tidak cukup untuk mengimbangi kelemahannya di kelas lain.
+
+**Model-model besar belum tentu lebih baik.** yolov10m (0.505) dan yolo26m (0.516) kalah dari yolov8s (0.526). Ini lagi-lagi menunjukkan bahwa capacity model bukan bottleneck — data dan task yang membatasi.
+
+### Per-class heatmap
+
+![Per-class heatmap across architectures](figures/p1_per_class_heatmap.png)
+
+Heatmap ini memperlihatkan mAP50 per kelas di semua arsitektur. Pola yang muncul sangat konsisten: B1 selalu hijau (tinggi), B4 selalu merah (rendah), terlepas dari model yang dipakai. Ini mengonfirmasi bahwa difficulty ranking antar kelas — B1 > B3 > B2 > B4 — adalah sifat inherent dari task dan dataset, bukan artefak dari arsitektur tertentu.
+
+### Gate canonical dan override
+
+Dari [locked_setup.yaml](locked_setup.yaml):
+- Gate canonical `mAP50 >= 0.70`: **False** — tidak ada model yang melewati threshold ini
+- Local override continue: **True**
+
+Secara protokol E0, fase ini seharusnya berhenti karena gate tidak lolos. Tapi repo ini menggunakan override operasional agar pipeline end-to-end tetap berjalan sampai Phase 3 — keputusan ini disengaja untuk menghasilkan satu baseline lengkap yang bisa dijadikan referensi, meskipun performanya belum ideal.
+
+## 4. Model yang di-lock
+
+Model yang di-lock ke Phase 2: **`yolo11m.pt`**.
+
+Lock ini artinya Phase 2 tidak membuka architecture search baru — hanya melakukan hyperparameter tuning pada satu model yang sudah dipilih.
+
+Bukti resmi:
+- [phase1b_top3.csv](phase1b_top3.csv)
+- [locked_setup.yaml](locked_setup.yaml)
+
+## 5. Keputusan akhir Phase 1
+
+Phase 1 menghasilkan dua keputusan yang dibawa ke fase selanjutnya:
+
+1. **Pipeline: `one-stage`** — two-stage gagal menunjukkan keunggulan, bahkan di kondisi ideal (GT crops)
+2. **Model: `yolo11m.pt`** — menang tipis tapi konsisten, dan menunjukkan bahwa bottleneck bukan di arsitektur
+
+## 6. Langkah berikutnya
+
+Setelah pipeline dan model di-lock, eksperimen lanjut ke Phase 2 untuk menjawab pertanyaan: apakah tuning hyperparameter bisa mendorong performa melewati ceiling yang terlihat di Phase 1? Buka [phase2_summary.md](../phase2/phase2_summary.md).
+## Phase 1B Top-3 Canonical Architectures
+
+- Rank 1: `yolo11m.pt` | mean mAP50 `0.5298` | mean mAP50-95 `0.2570` | mean confusion B2/B3 `` | mean B4 recall `0.36732851985559567`
+- Rank 2: `yolov9c.pt` | mean mAP50 `0.5292` | mean mAP50-95 `0.2518` | mean confusion B2/B3 `` | mean B4 recall `0.351985559566787`
+- Rank 3: `yolov8s.pt` | mean mAP50 `0.5256` | mean mAP50-95 `0.2521` | mean confusion B2/B3 `` | mean B4 recall `0.41064981949458484`
+
+## Locked Setup
+
+- Label order: `['B1', 'B2', 'B3', 'B4']`
+- Direction: `most_mature_to_least_mature`
+- `B1`: buah merah, besar, bulat, posisi paling bawah tandan; paling matang / ripe
+- `B2`: buah masih hitam namun mulai transisi ke merah, sudah besar dan bulat, posisi di atas B1
+- `B3`: buah full hitam, masih berduri, masih lonjong, posisi di atas B2
+- `B4`: buah paling kecil, paling dalam di batang/tandan, sulit terlihat, masih banyak duri, hitam sampai hijau, masih bisa berkembang lebih besar; paling mengkal / belum matang
+- Phase 2 locked model: `yolo11m.pt`
+- Phase 2 selected model: `yolo11m.pt`
+- Phase 3 candidates: `yolo11m.pt, yolov8s.pt`
+
+## Phase 2 — Hyperparameter Optimization
+
+# Phase 2 Summary — Hyperparameter Tuning
+
+Phase 2 menguji apakah penyesuaian hyperparameter bisa mendorong performa melewati ceiling yang terlihat di Phase 1, atau apakah bottleneck sebenarnya bukan di situ. Tuning dilakukan secara sequential pada satu model yang sudah di-lock (`yolo11m.pt`), mencakup loss function, learning rate, batch size, dan augmentation profile.
+
+Alasan pemilihan model ada di [phase1_summary.md](../phase1/phase1_summary.md). Hasil akhir retrain final di [final_evaluation.md](../phase3/final_evaluation.md) dan [final_report.md](../phase3/final_report.md).
 
 ---
 
-### Phase 1B — Benchmark arsitektur
+## Ringkasan eksekutif
 
-> Detail lengkap: [phase1_summary.md](outputs/phase1/phase1_summary.md)
+Secara singkat: **tuning tidak menghasilkan perbaikan yang meyakinkan**. Kombinasi terbaik (`lr0=0.0005`, `batch=16`, `aug=medium`) hanya memberikan gain ~0.5% mAP50 dibanding baseline Phase 1B — terlalu kecil untuk dijadikan alasan mengganti recipe yang sudah stabil. Keputusan akhir: **revert ke baseline Phase 1B**.
 
-11 arsitektur YOLO di-benchmark dalam kondisi identik (resolusi 640, lr0=0.001, batch=16, medium aug, 2 seed per model):
+Konfigurasi yang dibawa ke Phase 3: `lr0=0.001`, `batch=16`, `imbalance=none`, `ordinal=standard`, `aug=medium`, sesuai [final_hparams.yaml](final_hparams.yaml).
 
-![Architecture benchmark](outputs/phase1/figures/p1_architecture_benchmark.png)
+Confirmation run pada recipe terkunci menghasilkan:
 
-**Top-3** (sumber: [phase1b_top3.csv](outputs/phase1/phase1b_top3.csv)):
+| Metrik | Nilai |
+|---|---:|
+| Precision | 0.5066 |
+| Recall | 0.6042 |
+| mAP50 | 0.5390 |
+| mAP50-95 | 0.2594 |
+| B4 recall | 0.3736 |
+| Gate `all_classes_ge_70_ap50` | **False** |
 
-| Rank | Model | Mean mAP50 | Mean mAP50-95 |
-|---:|---|---:|---:|
-| 1 | `yolo11m.pt` | 0.5298 | 0.2570 |
-| 2 | `yolov9c.pt` | 0.5292 | 0.2518 |
-| 3 | `yolov8s.pt` | 0.5256 | 0.2521 |
-
-Gap antar model teratas sangat kecil (selisih #1 dan #2 hanya 0.0006) — ini menandakan bahwa **bottleneck bukan di arsitektur model, tapi di task difficulty dan data quality**. Ganti family model tidak menghasilkan lompatan; ceiling performa ditentukan oleh sifat task itu sendiri.
-
-Tidak ada model yang melewati gate canonical mAP50 ≥ 0.70. Repo ini menggunakan override operasional agar pipeline end-to-end tetap berjalan sampai Phase 3 — menghasilkan satu baseline lengkap yang bisa dijadikan referensi.
-
-**Keputusan: model = `yolo11m.pt`.** Lock file: [locked_setup.yaml](outputs/phase1/locked_setup.yaml).
-
-Yang menarik: kalau kita lihat performa per kelas di **semua** arsitektur, pola yang sama muncul di mana-mana — B1 selalu tinggi, B4 selalu rendah, terlepas dari model yang dipakai:
-
-![Per-class heatmap across architectures](outputs/phase1/figures/p1_per_class_heatmap.png)
-
-Heatmap ini mengonfirmasi bahwa difficulty ranking antar kelas (B1 > B3 > B2 > B4) bukan artefak dari satu model tertentu — ini adalah sifat inherent dari task dan dataset.
-
-Sumber: [architecture_benchmark.csv](outputs/phase1/architecture_benchmark.csv), [per_class_metrics.csv](outputs/phase1/per_class_metrics.csv)
+Kelas B2 dan B4 tetap menjadi bottleneck, konsisten dengan temuan Phase 1.
 
 ---
 
-### Phase 2 — Hyperparameter tuning (dan kenapa hasilnya revert)
+## 1. Tujuan dan cakupan
 
-> Detail lengkap: [phase2_summary.md](outputs/phase2/phase2_summary.md)
+| Aspek | Detail |
+|---|---|
+| Model | `yolo11m.pt` saja (tidak ada architecture search) |
+| Input lock | [locked_setup.yaml](../phase1/locked_setup.yaml) |
+| Metrik fokus | mAP50, mAP50-95, B4 recall |
+| Output resmi | [tuning_results.csv](tuning_results.csv), [final_hparams.yaml](final_hparams.yaml), confirmation JSON |
 
-Phase 2 menguji apakah tuning hyperparameter bisa mendorong performa melewati ceiling Phase 1. Tuning dilakukan sequential: loss function → learning rate → batch size → augmentation.
+Phase 2 bukan pengulangan benchmark multi-model — tujuannya spesifik: menguji apakah hyperparameter adjustment bisa memberikan gain yang signifikan pada arsitektur yang sudah dipilih.
 
-#### Loss function: bukan bottleneck
+---
 
-Temuan paling informatif datang dari step pertama. Tiga strategi loss (`none`, `class_weighted`, `focal`) menghasilkan **metrik yang identik** — bukan "mirip", tapi persis sama sampai 4 desimal:
+## 2. Sumber data
+
+- [imbalance_sweep.csv](imbalance_sweep.csv) — loss function sweep
+- [ordinal_sweep.csv](ordinal_sweep.csv) — mencatat step yang dilewati
+- [lr_sweep.csv](lr_sweep.csv) — learning rate sweep
+- [batch_sweep.csv](batch_sweep.csv) — batch size sweep
+- [aug_sweep.csv](aug_sweep.csv) — augmentation profile sweep
+- [tuning_results.csv](tuning_results.csv) — ringkasan keputusan tuning
+- [p2confirm_yolo11m_640_s3_e30p10m30_eval.json](p2confirm_yolo11m_640_s3_e30p10m30_eval.json) — confirmation run
+- [final_hparams.yaml](final_hparams.yaml) — konfigurasi final
+
+---
+
+## 3. Protokol
+
+- **Resolusi**: `imgsz=640` (locked dari Phase 0)
+- **Training**: `epochs=30`, `patience=10`, `min_epochs=30` (selaras Phase 1B)
+- **Agregasi**: setiap opsi sweep dihitung sebagai mean dari 2 seed, kecuali yang di-reuse dari Phase 1B
+
+Baseline Phase 1B untuk `yolo11m`: mean mAP50 **0.5298**, mean mAP50-95 **0.2570**, mean B4 recall **0.3673**.
+
+---
+
+## 4. Override operasional
+
+Beberapa cabang sweep dipangkas karena bukti awal sudah cukup jelas:
+
+1. **Step 0a (loss function)** — Tiga strategi (`none`, `class_weighted`, `focal15`) menghasilkan **metrik yang identik**. Loss dikunci ke `none`.
+2. **Step 0b (ordinal)** — Dilewati karena alasan yang sama dengan Step 0a.
+3. **Step 1 (LR)** — Baseline `lr0=0.001` di-reuse dari Phase 1B, tidak dilatih ulang.
+4. **Step 2 (batch)** — Hanya `8` vs `16`; `batch=32` dilewati.
+5. **Step 3 (augmentasi)** — Hanya `light` vs `medium`; `heavy` dilewati.
+
+Override ini mengurangi jumlah run tanpa mengorbankan kesimpulan — data yang ada sudah cukup untuk memutuskan revert.
+
+---
+
+## 5. Hasil per langkah sweep
+
+### 5.1 Step 0a — Loss function
+
+Sumber: [imbalance_sweep.csv](imbalance_sweep.csv).
 
 | Strategi | Mean mAP50 | Mean mAP50-95 | Mean B4 Recall |
 |---|---:|---:|---:|
@@ -177,165 +337,328 @@ Temuan paling informatif datang dari step pertama. Tiga strategi loss (`none`, `
 | `class_weighted` | 0.5298 | 0.2570 | 0.3673 |
 | `focal15` | 0.5298 | 0.2570 | 0.3673 |
 
-![Imbalance/loss sweep — semua identik](outputs/phase2/figures/p2_imbalance_sweep.png)
+![Loss function sweep — semua strategi identik](figures/p2_imbalance_sweep.png)
 
-Secara visual langsung terlihat: bar-bar untuk ketiga strategi persis sama. Ini kuat mengindikasikan bahwa model sudah mengekstrak sinyal seefisien yang bisa dari data yang ada — mengubah objective function tidak mengubah apa yang dipelajari.
+Ini adalah temuan yang paling informatif di Phase 2, meskipun pada pandangan pertama terlihat "kosong". Ketiga strategi loss menghasilkan angka yang persis sama — bukan mirip, tapi **identik** sampai 4 desimal.
 
-#### LR, batch, dan augmentation sweep
+Apa artinya? Loss function bukan bottleneck. Model sudah mengekstrak informasi dari data seefisien yang bisa dilakukan pada arsitektur dan resolusi ini. Mengubah cara loss di-weight (class_weighted) atau mengubah bentuk loss (focal) tidak mengubah apa yang model pelajari. Ini kuat mengindikasikan bahwa **ceiling performa ditentukan oleh data dan task difficulty, bukan training objective**.
 
-![Learning rate sweep](outputs/phase2/figures/p2_lr_sweep.png)
+### 5.2 Step 1 — Learning rate
 
-![Batch & augmentation sweep](outputs/phase2/figures/p2_batch_aug_sweep.png)
+Sumber: [lr_sweep.csv](lr_sweep.csv).
 
-LR sweep menunjukkan `lr0=0.0005` sedikit lebih baik (+0.52% mAP50), tapi gain-nya marginal dan variance antar seed masih overlap. `lr0=0.002` malah menjatuhkan B4 recall ke 0.334. Batch dan augmentation sweep juga tidak menghasilkan breakthrough — setiap gain di satu metrik diikuti penurunan di metrik lain.
+| LR | Source | Mean mAP50 | Mean mAP50-95 | Mean B4 Recall |
+|---|---|---:|---:|---:|
+| `0.001` | Phase 1B (reuse) | 0.5298 | 0.2570 | 0.3673 |
+| `0.0005` | Sweep Phase 2 | 0.5350 | 0.2577 | 0.3637 |
+| `0.002` | Sweep Phase 2 | 0.5338 | 0.2587 | 0.3337 |
 
-#### Keputusan revert
+![Learning rate sweep](figures/p2_lr_sweep.png)
 
-![Tuning progression](outputs/phase2/figures/p2_tuning_summary.png)
+`lr0=0.0005` memberikan gain kecil di mAP50 (+0.52%) tapi B4 recall turun sedikit. `lr0=0.002` menaikkan mAP50-95 tapi **menjatuhkan B4 recall ke 0.334** — penurunan yang signifikan untuk kelas yang sudah paling sulit.
 
-Kandidat terbaik (0.5350) vs baseline (0.5298) — selisih hanya **0.52%**, terlalu kecil untuk membenarkan perubahan recipe. **Keputusan: revert ke baseline Phase 1B.**
+Pola ini menunjukkan trade-off yang tidak menguntungkan: LR yang lebih tinggi membuat model lebih agresif secara overall tapi lebih buruk di kelas sulit. LR yang lebih rendah sedikit lebih baik secara agregat tapi gain-nya marginal dan tidak konsisten antar seed.
 
-Pesan terbesar: **bottleneck ada di task difficulty dan data quality, bukan di hyperparameter.** Sweep di ruang standar sudah saturated.
+### 5.3 Step 2 — Batch size
 
-Konfigurasi final: [final_hparams.yaml](outputs/phase2/final_hparams.yaml).
+Sumber: [batch_sweep.csv](batch_sweep.csv).
 
-Sumber: [lr_sweep.csv](outputs/phase2/lr_sweep.csv), [batch_sweep.csv](outputs/phase2/batch_sweep.csv), [aug_sweep.csv](outputs/phase2/aug_sweep.csv), [tuning_results.csv](outputs/phase2/tuning_results.csv)
+| Batch | Mean mAP50 | Mean mAP50-95 | Mean B4 Recall |
+|---:|---:|---:|---:|
+| 8 | 0.5321 | 0.2574 | 0.3791 |
+| 16 | 0.5350 | 0.2577 | 0.3637 |
+
+### 5.4 Step 3 — Augmentation profile
+
+Sumber: [aug_sweep.csv](aug_sweep.csv).
+
+| Profile | Mean mAP50 | Mean mAP50-95 | Mean B4 Recall |
+|---|---:|---:|---:|
+| `light` | 0.5256 | 0.2512 | 0.3827 |
+| `medium` | 0.5350 | 0.2577 | 0.3637 |
+
+![Batch size dan augmentation sweep](figures/p2_batch_aug_sweep.png)
+
+Ada pola menarik yang berulang di Step 2 dan 3: konfigurasi yang lebih "ringan" (batch kecil, augmentasi ringan) cenderung lebih baik untuk B4 recall, sementara konfigurasi "standar" (batch 16, medium aug) lebih baik untuk metrik agregat. Ini masuk akal — batch lebih kecil dan augmentasi lebih ringan memberi model lebih banyak kesempatan untuk melihat instance B4 yang sedikit secara efektif, tapi mengorbankan generalisasi di kelas lain.
+
+Namun perbedaannya tetap kecil di semua metrik — tidak ada konfigurasi yang memberikan breakthrough.
 
 ---
 
-### Phase 3 — Retrain final & evaluasi test set
+## 6. Keputusan tuning
 
-> Detail lengkap: [final_evaluation.md](outputs/phase3/final_evaluation.md) · [error_analysis.md](outputs/phase3/error_analysis.md)
+![Phase 2 tuning — progression mAP50](figures/p2_tuning_summary.png)
 
-Phase 3 melakukan retrain final dengan budget lebih besar (60 epoch, patience 15, seed 42) pada konfigurasi yang sudah di-lock, lalu evaluasi pada test set yang tidak pernah disentuh selama training maupun tuning.
+Dari [tuning_results.csv](tuning_results.csv):
 
-#### Training curves
+| Field | Nilai |
+|---|---|
+| Baseline mean mAP50 | 0.5298 |
+| Best tuned mean mAP50 | 0.5350 |
+| Final mean mAP50 | 0.5329 |
+| Final mean mAP50-95 | 0.2578 |
+| Reverted to Phase 1 baseline | **True** |
+| Final source | `phase1_baseline_reverted` |
 
-![Training curves final run](outputs/phase3/figures/p3_training_curves.png)
+Selisih antara baseline (0.5298) dan kandidat terbaik (0.5350) hanya **0.52%** — di bawah threshold yang bisa dianggap meaningful, apalagi dengan variance antar seed yang masih overlap. Keputusan revert bukan karena tuning "gagal" dalam artian error, tapi karena **gain-nya tidak cukup untuk membenarkan perubahan recipe** yang sudah stabil dan reproducible.
 
-Training curves menunjukkan model converge dengan baik: training loss menurun monoton, validation loss stabil setelah ~epoch 20, dan mAP50 mencapai puncaknya di pertengahan training sebelum plateau. Model tidak menunjukkan tanda overfitting yang parah — validation loss tidak naik kembali, menandakan bahwa patience 15 dan epoch budget 60 sudah tepat.
+---
 
-#### Performa per kelas
+## 7. Konfigurasi final yang di-lock
 
-![Metrik per kelas](outputs/phase3/figures/p3_per_class_metrics.png)
+Recipe yang ditulis ke [final_hparams.yaml](final_hparams.yaml) untuk Phase 3:
 
-| Kelas | Precision | Recall | mAP50 | mAP50-95 |
-|---|---:|---:|---:|---:|
-| B1 | 0.7237 | 0.7262 | 0.7821 | 0.4246 |
-| B2 | 0.3932 | 0.4182 | 0.3266 | 0.1481 |
-| B3 | 0.4603 | 0.6910 | 0.4880 | 0.2138 |
-| B4 | 0.3280 | 0.3798 | 0.2742 | 0.0993 |
+| Parameter | Nilai |
+|---|---|
+| Model | `yolo11m.pt` |
+| lr0 | `0.001` |
+| Batch | `16` |
+| Imbalance strategy | `none` |
+| Ordinal strategy | `standard` |
+| Aug profile | `medium` |
+| Image size | `640` |
 
-Polanya konsisten dengan prediksi sejak Phase 0:
+---
 
-- **B1** mendominasi — warna merah terang dan ukuran besar membuat visual signature-nya paling distinct
-- **B3** punya recall tinggi (0.69) tapi precision rendah (0.46) — model sering salah melabel objek lain sebagai B3, terutama B2
-- **B2** paling ambigu — gradasi warna antara B2 dan B3 sangat halus, membuat discriminative learning sulit
-- **B4** konsisten tersulit — ukuran kecil, posisi tersembunyi, dan jumlah instance lebih sedikit
+## 8. Verification: confirmation run
 
-Secara praktis, mAP50 overall 0.47 artinya model lebih bisa diandalkan untuk mengonfirmasi kematangan tinggi (B1) daripada mendeteksi buah muda (B4) secara komprehensif.
+Run **`p2confirm_yolo11m_640_s3_e30p10m30`** menggunakan seed ke-3 (bukan seed 1 atau 2 yang dipakai di sweep) untuk memvalidasi bahwa recipe terkunci menghasilkan performa yang konsisten.
 
-#### Threshold operasi
+Evaluasi pada split **val** ([p2confirm_yolo11m_640_s3_e30p10m30_eval.json](p2confirm_yolo11m_640_s3_e30p10m30_eval.json)):
 
-![Threshold sweep](outputs/phase3/figures/p3_threshold_sweep_detail.png)
-
-| conf | precision | recall | mAP50 | mAP50-95 | B4 recall |
-|---:|---:|---:|---:|---:|---:|
-| 0.1 | 0.7032 | 0.6995 | 0.7395 | 0.4499 | 0.5415 |
-| 0.2 | 0.7032 | 0.6995 | 0.7218 | 0.4475 | 0.5415 |
-| 0.3 | 0.7152 | 0.6821 | 0.7086 | 0.4484 | 0.5181 |
-| 0.4 | 0.7853 | 0.5860 | 0.6862 | 0.4429 | 0.4152 |
-| 0.5 | 0.8307 | 0.4717 | 0.6515 | 0.4311 | 0.2798 |
-
-Di `conf=0.1`, precision dan recall seimbang (~0.70) dan mAP50 melompat ke 0.74. Yang paling menarik: B4 recall naik ke 0.54 (dari 0.38 default) — model sebenarnya "melihat" B4 tapi dengan confidence rendah. Operating point terbaik: **`conf=0.1`**.
-
-Catatan: angka threshold sweep menentukan operating point deployment, bukan mengganti skor resmi di eval JSON.
-
-Sumber: [threshold_sweep.csv](outputs/phase3/threshold_sweep.csv)
-
-#### Evolusi performa lintas fase
-
-![Cross-phase comparison](outputs/phase3/figures/p3_cross_phase_comparison.png)
-
-Chart ini merangkum perjalanan per-class mAP50 dari Phase 1B baseline (val set, 30 epoch) → Phase 2 confirmation (val set, seed 3) → Phase 3 final (test set, 60 epoch). Beberapa hal yang terlihat:
-
-- **B1 konsisten di atas target 0.70** di semua fase — satu-satunya kelas yang lolos
-- **B2, B3, B4 tidak pernah mendekati target** di fase manapun
-- Drop dari Phase 2 (val) ke Phase 3 (test) pada B2 dan B4 menandakan bahwa val set sedikit lebih "mudah" dari test set untuk kelas-kelas ini
-- Gap terbesar ada di B4: dari ~0.38 di Phase 1B ke 0.27 di Phase 3 test — menunjukkan bahwa B4 bahkan lebih sulit di test set
-
-#### Error dominan
-
-![Distribusi error](outputs/phase3/figures/p3_error_distribution.png)
-
-Dari 20 image tersulit:
-
-| Kategori | Jumlah Image |
+| Metrik | Nilai |
 |---|---:|
-| `false_positive` | 20 |
-| `B2_B3_confusion` | 13 |
-| `B4_missed` | 11 |
-| `B3_B4_confusion` | 10 |
+| Precision | 0.5066 |
+| Recall | 0.6042 |
+| mAP50 | 0.5390 |
+| mAP50-95 | 0.2594 |
+| B4 recall | 0.3736 |
+| `all_classes_ge_70_ap50` | **False** |
 
-![Top-20 image tersulit](outputs/phase3/figures/p3_error_by_image_score.png)
+Per kelas (mAP50): B1 **0.8050**, B2 **0.4042**, B3 **0.5716**, B4 **0.3753**.
 
-Polanya koheren: error terbesar terjadi pada **kelas berdekatan secara ordinal** (B2↔B3, B3↔B4) dan pada **scene dense** (banyak buah dalam satu frame → banyak false positive). Image dari tandan yang sama cenderung muncul berulang di daftar tersulit — beberapa tandan memang secara inheren lebih sulit.
-
-Sumber: [error_stratification.csv](outputs/phase3/error_stratification.csv), detail di [error_analysis.md](outputs/phase3/error_analysis.md)
-
-#### Status deploy
-
-**Deferred.** Weight `best.pt` aman, tapi konversi ke format deployment (TFLite, ONNX, INT8) ditunda — menjalankan deploy pipeline di atas model yang belum memenuhi target AP50 ≥ 0.70 di semua kelas akan menghasilkan artefak yang perlu di-redo. Detail: [deploy_check.md](outputs/phase3/deploy_check.md).
+Hasil ini mengonfirmasi dua hal: (1) recipe terkunci menghasilkan performa yang sesuai ekspektasi di seed baru, dan (2) gap antar kelas — B1 jauh di atas, B4 jauh di bawah — bukan artefak seed tertentu tapi memang karakteristik task ini.
 
 ---
 
-## Kesimpulan
+## 9. Kesimpulan
 
-Eksperimen E0 menghasilkan **satu baseline final yang konsisten, terlacak, dan reproducible** untuk task deteksi kematangan buah sawit. Setiap keputusan terdokumentasi, setiap angka bisa ditelusuri ke artefak aslinya.
+Phase 2 memberikan beberapa insight yang penting meskipun tidak menghasilkan perubahan recipe:
 
-Dari sisi performa, model ini solid sebagai baseline tapi bukan production-ready. Temuan lintas fase yang paling penting:
+1. **Loss function bukan bottleneck.** Tiga strategi menghasilkan metrik identik — model sudah mengekstrak sinyal seefisien yang bisa dari data yang ada.
 
-1. **Dataset cukup bersih untuk baseline**, tapi distribusi kelas tidak merata (B3 mendominasi 46%)
-2. **Resolusi 640 sudah cukup** — gain dari 1024 hanya 2.15%, tidak sebanding compute cost
-3. **One-stage lebih realistis** — two-stage gagal menyelesaikan confusion B2/B3 bahkan di GT crops
-4. **Bottleneck bukan di arsitektur** — gap antar 11 model YOLO sangat kecil
-5. **Bottleneck bukan di hyperparameter** — loss function sweep identik, LR/batch/aug sweep marginal
-6. **Bottleneck ada di task difficulty dan data quality** — confusion antar kelas berdekatan (B2↔B3, B3↔B4) dan kesulitan mendeteksi B4 yang kecil
+2. **LR, batch, dan augmentation memberikan trade-off marginal**, bukan perbaikan. Setiap gain di satu metrik diikuti penurunan di metrik lain, dan semua dalam margin of error antar seed.
 
-### Arah perbaikan
+3. **Keputusan revert ke baseline adalah pilihan stabilitas.** Bukan karena tuning gagal, tapi karena gain < 1% tidak cukup kuat untuk membenarkan perubahan recipe di pipeline yang harus reproducible.
 
-Karena hyperparameter sweep sudah saturated, peningkatan berikutnya harus datang dari perubahan yang lebih fundamental:
-
-1. **Mengurangi confusion B2/B3** — eksplorasi fine-grained feature learning (attention pada region warna), augmentasi domain-specific yang memanipulasi gradasi warna zona transisi
-2. **Meningkatkan recall B4** — threshold sweep menunjukkan model "melihat" B4 di confidence rendah; bisa didekati via resolusi lebih tinggi atau penambahan data B4 berkualitas
-3. **Menekan false positive** — NMS tuning dan confidence calibration bisa membantu tanpa retrain
-4. Baru setelah ketiga perbaikan menunjukkan progress, lanjutkan ke deploy pipeline
+4. **Pesan terbesar: bottleneck ada di task difficulty dan data quality.** Sweep hyperparameter di ruang standar sudah saturated. Peningkatan berikutnya harus datang dari pendekatan yang lebih fundamental — domain-specific augmentation, perubahan arsitektur yang targeted, atau peningkatan kualitas/kuantitas data.
 
 ---
 
-## Referensi teknis
+## 10. Langkah berikutnya
 
-### Hierarki acuan
+Phase 2 menutup pertanyaan "apakah tuning bisa membantu?" dengan jawaban "tidak secara signifikan". Eksperimen lanjut ke Phase 3 untuk benchmark final yang adil: kandidat utama dilatih pada `train`, lalu model yang sama dievaluasi pada `val` dan `test`. Buka [final_report.md](../phase3/final_report.md).
 
-Kalau ada konflik antar dokumen, pakai urutan prioritas ini:
+## Final Phase 2 Configuration
 
-1. **Artefak run final** (source of truth):
-   - [p3_final_yolo11m_640_s42_e60p15m60_eval.json](outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_eval.json)
-   - [p3_final_yolo11m_640_s42_e60p15m60_summary.json](outputs/phase3/p3_final_yolo11m_640_s42_e60p15m60_summary.json)
-2. **Lock files**:
-   - [locked_setup.yaml](outputs/phase1/locked_setup.yaml)
-   - [final_hparams.yaml](outputs/phase2/final_hparams.yaml)
-3. **Ringkasan per fase**:
-   - [phase0_summary.md](outputs/phase0/phase0_summary.md) · [eda_report.md](outputs/phase0/eda_report.md)
-   - [phase1_summary.md](outputs/phase1/phase1_summary.md)
-   - [phase2_summary.md](outputs/phase2/phase2_summary.md)
-   - [final_report.md](outputs/phase3/final_report.md) · [final_evaluation.md](outputs/phase3/final_evaluation.md)
-4. **Dokumen konteks**: [E0.md](E0.md) · [GUIDE.md](GUIDE.md) · [CONTEXT.md](CONTEXT.md) · [CONTEXT_Less.md](CONTEXT_Less.md)
+- model: `yolo11m.pt`
+- lr0: `0.001`
+- batch: `16`
+- imbalance_strategy: `none`
+- ordinal_strategy: `standard`
+- aug_profile: `medium`
+- patience: `10`
+- epochs: `30`
+- min_epochs: `30`
+- imgsz: `640`
 
-### Audit trail
+## Phase 3 — Final Validation
 
-- Ledger seluruh run: [run_ledger.csv](outputs/reports/run_ledger.csv)
-- Status eksekusi: [latest_status.md](outputs/reports/latest_status.md)
-- Git sync log: [git_sync_log.md](outputs/reports/git_sync_log.md)
-- Reproduksi & terminasi: [reproducibility_and_termination.md](outputs/reports/reproducibility_and_termination.md)
-- State orchestrator: [master_state.json](outputs/reports/master_state.json)
+# Final Report - Phase 3 Multi-Candidate Benchmark
+
+- Canonical protocol source: `https://github.com/muhammad-zainal-muttaqin/YOLOBench/blob/main/E0_Protocol_Flowchart.html`
+- Phase 3 ini menimpa definisi lama dan sekarang mengikuti split adil: training hanya `train`, evaluasi pada `val` dan `test`.
+- Kandidat utama one-stage: `yolo11m.pt` dan `yolov8s.pt`.
+- Checkpoint utama untuk pelaporan final: `last.pt`; `best.pt` tetap ikut dievaluasi.
+- Cabang two-stage di-run ulang sebagai pembanding pendukung: Stage-1 single-class detector, Stage-2 GT-crop classifier, dan evaluasi end-to-end.
+
+## One-Stage Test Set — `last.pt`
+
+- `yolo11m` | mAP50 `0.4840` | mAP50-95 `0.2470` | precision `0.4944` | recall `0.5563` | conf `0.1`
+- `yolov8s` | mAP50 `0.4621` | mAP50-95 `0.2378` | precision `0.4626` | recall `0.5431` | conf `0.2`
+
+## Gap Val vs Test — `last.pt`
+
+- `yolo11m` | mAP50 val `0.4996` -> test `0.4840` | precision val `0.5011` -> test `0.4944` | recall val `0.5630` -> test `0.5563`
+- `yolov8s` | mAP50 val `0.4776` -> test `0.4621` | precision val `0.5054` -> test `0.4626` | recall val `0.5352` -> test `0.5431`
+
+## Two-Stage GT-Crop (`last.pt`, test)
+
+- top1 `0.6485` | weighted F1 `0.6337` | macro F1 `0.6337`
+
+## Two-Stage End-to-End (`last.pt`, test)
+
+- precision `0.4840` | recall `0.5053` | F1 `0.4944` | accuracy `0.5053`
+
+## Final Metrics Table
+
+- [one_stage] `yolo11m` / `best` / `test` | precision `0.49410030761179724` | recall `0.5910578847863038` | mAP50 `0.5018626224759173` | weighted F1 `0.46855481973888846`
+- [one_stage] `yolo11m` / `best` / `val` | precision `0.5160895467885428` | recall `0.6002582748302572` | mAP50 `0.5371943280267729` | weighted F1 `0.4736769381209764`
+- [one_stage] `yolo11m` / `last` / `test` | precision `0.4943981140753659` | recall `0.5562910226057957` | mAP50 `0.48402586343180226` | weighted F1 `0.47052222506027663`
+- [one_stage] `yolo11m` / `last` / `val` | precision `0.5010918388470724` | recall `0.5629941040412151` | mAP50 `0.49959701952860563` | weighted F1 `0.47372984826355713`
+- [one_stage] `yolov8s` / `best` / `test` | precision `0.49681915296031043` | recall `0.5812770763844937` | mAP50 `0.5062985098174978` | weighted F1 `0.46055703944819726`
+- [one_stage] `yolov8s` / `best` / `val` | precision `0.4964991448161139` | recall `0.5834888879383455` | mAP50 `0.524362382425673` | weighted F1 `0.46358836730540215`
+- [one_stage] `yolov8s` / `last` / `test` | precision `0.46258145527555866` | recall `0.5431034290444747` | mAP50 `0.4621218196199782` | weighted F1 `0.4857101243871921`
+- [one_stage] `yolov8s` / `last` / `val` | precision `0.5053514288288228` | recall `0.5352247862211477` | mAP50 `0.4776129966941458` | weighted F1 `0.4917705044244813`
+- [two_stage_end_to_end] `yolo11n_singlecls+yolo11ncls_gtcrop` / `best` / `test` | precision `0.4707403815066279` | recall `0.5123152709359606` | mAP50 `` | weighted F1 `0.4736843011600923`
+- [two_stage_end_to_end] `yolo11n_singlecls+yolo11ncls_gtcrop` / `best` / `val` | precision `0.4730043060616098` | recall `0.5125628140703518` | mAP50 `` | weighted F1 `0.4731341511805755`
+- [two_stage_end_to_end] `yolo11n_singlecls+yolo11ncls_gtcrop` / `last` / `test` | precision `0.4839905628581058` | recall `0.5052779732582688` | mAP50 `` | weighted F1 `0.48016377608014116`
+- [two_stage_end_to_end] `yolo11n_singlecls+yolo11ncls_gtcrop` / `last` / `val` | precision `0.4749912556838055` | recall `0.48743718592964824` | mAP50 `` | weighted F1 `0.4654678748544114`
+- [two_stage_gtcrop] `yolo11n-cls` / `best` / `test` | precision `0.6449165873943363` | recall `0.6456720619282196` | mAP50 `` | weighted F1 `0.6254362017565036`
+- [two_stage_gtcrop] `yolo11n-cls` / `best` / `val` | precision `0.6392447225332538` | recall `0.6432160804020101` | mAP50 `` | weighted F1 `0.6222892979649067`
+- [two_stage_gtcrop] `yolo11n-cls` / `last` / `test` | precision `0.6431753976528881` | recall `0.6484869809992962` | mAP50 `` | weighted F1 `0.6337484925136235`
+- [two_stage_gtcrop] `yolo11n-cls` / `last` / `val` | precision `0.6258801085917097` | recall `0.633883704235463` | mAP50 `` | weighted F1 `0.6191295911237336`
+- [two_stage_stage1] `yolo11n` / `best` / `test` | precision `0.805422415461472` | recall `0.7398957904142087` | mAP50 `0.8179902877185272` | weighted F1 ``
+- [two_stage_stage1] `yolo11n` / `best` / `val` | precision `0.8151933531183662` | recall `0.74414882705101` | mAP50 `0.8263016077254525` | weighted F1 ``
+- [two_stage_stage1] `yolo11n` / `last` / `test` | precision `0.80636281471588` | recall `0.7329345531315975` | mAP50 `0.8129706697765995` | weighted F1 ``
+- [two_stage_stage1] `yolo11n` / `last` / `val` | precision `0.8088763796771667` | recall `0.7276494522491271` | mAP50 `0.8157740777927364` | weighted F1 ``
+
+# Final Evaluation — Phase 3
+
+Dokumen ini memuat ringkasan evaluasi teknis hasil otomasi ulang Phase 3 sesuai `GUIDE.md`: train-only benchmark, dual-candidate one-stage, dan cabang two-stage yang dibangun ulang.
+
+## Source of truth
+
+- `outputs/phase3/final_metrics.csv`
+- `outputs/phase3/per_class_metrics.csv`
+- `outputs/phase3/confusion_matrix.csv`
+- `outputs/phase3/threshold_sweep.csv`
+- `outputs/phase3/error_stratification.csv`
+
+## Kandidat One-Stage
+
+- `yolo11m` (`last`, test): mAP50 `0.4840`, mAP50-95 `0.2470`, precision `0.4944`, recall `0.5563`, weighted F1 `0.4705`
+- `yolov8s` (`last`, test): mAP50 `0.4621`, mAP50-95 `0.2378`, precision `0.4626`, recall `0.5431`, weighted F1 `0.4857`
+
+## Cabang Two-Stage
+
+- GT-crop classifier (`last`, test): top1 `0.6485`, weighted F1 `0.6337`
+- End-to-end (`last`, test): precision `0.4840`, recall `0.5053`, F1 `0.4944`
+
+# Deploy Check
+
+- Status: **deferred by repo override**.
+- TFLite export: `skipped for now`
+- TFLite INT8 export: `skipped for now`
+- Rationale: Phase 3 ini memprioritaskan benchmark adil, dokumentasi, dan sinkronisasi artefak sebelum deployment engineering.
+- Important: konversi deployment wajib divalidasi ulang terhadap artefak hasil konversi.
+- Weight: `/workspace/brand-new-yolo/runs/classify/runs/e0/p3ts_stage2_cls_yolo11n-cls_224_s42_e30p10m30/weights/best.pt` | size MB `3.04`
+- Weight: `/workspace/brand-new-yolo/runs/classify/runs/e0/p3ts_stage2_cls_yolo11n-cls_224_s42_e30p10m30/weights/last.pt` | size MB `3.04`
+- Weight: `/workspace/brand-new-yolo/runs/detect/runs/e0/p3os_yolo11m_640_s42_e60fix/weights/best.pt` | size MB `38.63`
+- Weight: `/workspace/brand-new-yolo/runs/detect/runs/e0/p3os_yolo11m_640_s42_e60fix/weights/last.pt` | size MB `38.63`
+- Weight: `/workspace/brand-new-yolo/runs/detect/runs/e0/p3os_yolov8s_640_s42_e60fix/weights/best.pt` | size MB `21.47`
+- Weight: `/workspace/brand-new-yolo/runs/detect/runs/e0/p3os_yolov8s_640_s42_e60fix/weights/last.pt` | size MB `21.47`
+- Weight: `/workspace/brand-new-yolo/runs/detect/runs/e0/p3ts_stage1_singlecls_yolo11n_640_s42_e30p10m30/weights/best.pt` | size MB `5.20`
+- Weight: `/workspace/brand-new-yolo/runs/detect/runs/e0/p3ts_stage1_singlecls_yolo11n_640_s42_e30p10m30/weights/last.pt` | size MB `5.20`
+
+# Error Analysis
+
+- `one_stage` / `yolo11m` / `best` / `test`
+  - false_positive: `20` image
+  - B2_B3_confusion: `15` image
+  - B3_B4_confusion: `14` image
+  - B4_missed: `9` image
+- `one_stage` / `yolo11m` / `best` / `val`
+  - false_positive: `20` image
+  - B2_B3_confusion: `10` image
+  - B3_B4_confusion: `9` image
+  - B4_missed: `6` image
+- `one_stage` / `yolo11m` / `last` / `test`
+  - false_positive: `20` image
+  - B2_B3_confusion: `14` image
+  - B3_B4_confusion: `11` image
+  - B4_missed: `6` image
+- `one_stage` / `yolo11m` / `last` / `val`
+  - false_positive: `20` image
+  - B3_B4_confusion: `14` image
+  - B4_missed: `9` image
+  - B2_B3_confusion: `8` image
+- `one_stage` / `yolov8s` / `best` / `test`
+  - false_positive: `20` image
+  - B3_B4_confusion: `12` image
+  - B2_B3_confusion: `11` image
+  - B4_missed: `11` image
+- `one_stage` / `yolov8s` / `best` / `val`
+  - false_positive: `20` image
+  - B3_B4_confusion: `12` image
+  - B2_B3_confusion: `11` image
+  - B4_missed: `11` image
+- `one_stage` / `yolov8s` / `last` / `test`
+  - false_positive: `20` image
+  - B3_B4_confusion: `15` image
+  - B4_missed: `13` image
+  - B2_B3_confusion: `12` image
+- `one_stage` / `yolov8s` / `last` / `val`
+  - false_positive: `20` image
+  - B4_missed: `14` image
+  - B3_B4_confusion: `12` image
+  - B2_B3_confusion: `11` image
+- `two_stage_end_to_end` / `detector+classifier` / `best` / `test`
+  - false_positive: `20` image
+  - B2_B3_confusion: `17` image
+  - B3_B4_confusion: `16` image
+  - B4_missed: `10` image
+- `two_stage_end_to_end` / `detector+classifier` / `best` / `val`
+  - false_positive: `20` image
+  - B2_B3_confusion: `16` image
+  - B4_missed: `12` image
+  - B3_B4_confusion: `11` image
+- `two_stage_end_to_end` / `detector+classifier` / `last` / `test`
+  - false_positive: `19` image
+  - B3_B4_confusion: `16` image
+  - B2_B3_confusion: `13` image
+  - B4_missed: `11` image
+- `two_stage_end_to_end` / `detector+classifier` / `last` / `val`
+  - false_positive: `20` image
+  - B2_B3_confusion: `17` image
+  - B4_missed: `13` image
+  - B3_B4_confusion: `12` image
+
+## Key Artifacts
+- `outputs/phase0/phase0_summary.md`
+- `outputs/phase1/phase1_summary.md`
+- `outputs/phase1/architecture_benchmark.csv`
+- `outputs/phase1/per_class_metrics.csv`
+- `outputs/phase1/locked_setup.yaml`
+- `outputs/phase2/phase2_summary.md`
+- `outputs/phase2/tuning_results.csv`
+- `outputs/phase2/final_hparams.yaml`
+- `outputs/phase3/final_report.md`
+- `outputs/phase3/final_evaluation.md`
+- `outputs/phase3/final_metrics.csv`
+- `outputs/phase3/per_class_metrics.csv`
+- `outputs/phase3/confusion_matrix.csv`
+- `outputs/phase3/threshold_sweep.csv`
+- `outputs/phase3/error_stratification.csv`
+- `outputs/phase3/detail/`
+- `outputs/phase3/figures/`
+- `outputs/reports/run_ledger.csv`
+- `outputs/reports/git_sync_log.md`
+
+## Recent Weight Outputs
+- `p2s3_light_yolo11m_640_s1_e30p10m30` | model `yolo11m.pt` | best `/workspace/brand-new-yolo/runs/detect/runs/e0/p2s3_light_yolo11m_640_s1_e30p10m30/weights/best.pt` | last `/workspace/brand-new-yolo/runs/detect/runs/e0/p2s3_light_yolo11m_640_s1_e30p10m30/weights/last.pt`
+- `p2s3_light_yolo11m_640_s2_e30p10m30` | model `yolo11m.pt` | best `/workspace/brand-new-yolo/runs/detect/runs/e0/p2s3_light_yolo11m_640_s2_e30p10m30/weights/best.pt` | last `/workspace/brand-new-yolo/runs/detect/runs/e0/p2s3_light_yolo11m_640_s2_e30p10m30/weights/last.pt`
+- `p2s3_medium_yolo11m_640_s1_e30p10m30` | model `yolo11m.pt` | best `/workspace/brand-new-yolo/runs/detect/runs/e0/p2s3_medium_yolo11m_640_s1_e30p10m30/weights/best.pt` | last `/workspace/brand-new-yolo/runs/detect/runs/e0/p2s3_medium_yolo11m_640_s1_e30p10m30/weights/last.pt`
+- `p2s3_medium_yolo11m_640_s2_e30p10m30` | model `yolo11m.pt` | best `/workspace/brand-new-yolo/runs/detect/runs/e0/p2s3_medium_yolo11m_640_s2_e30p10m30/weights/best.pt` | last `/workspace/brand-new-yolo/runs/detect/runs/e0/p2s3_medium_yolo11m_640_s2_e30p10m30/weights/last.pt`
+- `p2confirm_yolo11m_640_s3_e30p10m30` | model `yolo11m.pt` | best `/workspace/brand-new-yolo/runs/detect/runs/e0/p2confirm_yolo11m_640_s3_e30p10m30/weights/best.pt` | last `/workspace/brand-new-yolo/runs/detect/runs/e0/p2confirm_yolo11m_640_s3_e30p10m30/weights/last.pt`
+- `p3_final_yolo11m_640_s42_e60p15m60` | model `yolo11m.pt` | best `/workspace/brand-new-yolo/runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/best.pt` | last `/workspace/brand-new-yolo/runs/detect/runs/e0/p3_final_yolo11m_640_s42_e60p15m60/weights/last.pt`
+- `p3os_yolo11m_640_s42_e60fix` | model `yolo11m.pt` | best `/workspace/brand-new-yolo/runs/detect/runs/e0/p3os_yolo11m_640_s42_e60fix/weights/best.pt` | last `/workspace/brand-new-yolo/runs/detect/runs/e0/p3os_yolo11m_640_s42_e60fix/weights/last.pt`
+- `p3os_yolov8s_640_s42_e60fix` | model `yolov8s.pt` | best `/workspace/brand-new-yolo/runs/detect/runs/e0/p3os_yolov8s_640_s42_e60fix/weights/best.pt` | last `/workspace/brand-new-yolo/runs/detect/runs/e0/p3os_yolov8s_640_s42_e60fix/weights/last.pt`
+- `p3ts_stage1_singlecls_yolo11n_640_s42_e30p10m30` | model `yolo11n.pt` | best `/workspace/brand-new-yolo/runs/detect/runs/e0/p3ts_stage1_singlecls_yolo11n_640_s42_e30p10m30/weights/best.pt` | last `/workspace/brand-new-yolo/runs/detect/runs/e0/p3ts_stage1_singlecls_yolo11n_640_s42_e30p10m30/weights/last.pt`
+- `p3ts_stage2_cls_yolo11n-cls_224_s42_e30p10m30` | model `yolo11n-cls.pt` | best `/workspace/brand-new-yolo/runs/classify/runs/e0/p3ts_stage2_cls_yolo11n-cls_224_s42_e30p10m30/weights/best.pt` | last `/workspace/brand-new-yolo/runs/classify/runs/e0/p3ts_stage2_cls_yolo11n-cls_224_s42_e30p10m30/weights/last.pt`
+
+## Notes
+- `GUIDE.md` adalah runbook operasional.
+- `CONTEXT.md` memuat decision context dan caveat riset.
+- `outputs/reports/run_ledger.csv` adalah ledger utama semua run.
+- Seluruh workflow diatur untuk menyimpan hasil, commit, lalu push.

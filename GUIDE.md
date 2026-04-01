@@ -404,9 +404,9 @@ Urutan aksi setelah clone ulang atau audit cepat:
 ## 10. Status sinkronisasi otomatis
 
 <!-- AUTOSTATUS:START -->
-- Canonical source synced: [E0.md](E0.md) mengikuti flowchart YOLOBench.
-- Phase 1B selesai dan model Phase 2 sudah dikunci.
-- Phase 2 selesai. Model tunggal terpilih tetap `yolo11m.pt`, tetapi kontrak Phase 3 sudah diganti menjadi multi-candidate benchmark.
-- Config final Phase 2 ditulis ke [outputs/phase1/locked_setup.yaml](outputs/phase1/locked_setup.yaml) dan [outputs/phase2/final_hparams.yaml](outputs/phase2/final_hparams.yaml).
-- Phase 3 harus dijalankan ulang dengan kandidat utama `yolo11m.pt` dan `yolov8s.pt`.
+- Canonical source synced: `E0.md` mengikuti flowchart YOLOBench.
+- Phase 3 sekarang ditimpa sebagai benchmark otomatis multi-candidate dengan split adil (`train` -> `val` + `test`).
+- Kandidat utama one-stage yang dijalankan: `yolo11m.pt` dan `yolov8s.pt`.
+- Cabang two-stage dibangun ulang: single-class detector, GT-crop classifier, dan evaluasi end-to-end.
+- Artefak Phase 3 baru tersedia di `outputs/phase3/` dan detail per-branch ada di `outputs/phase3/detail/`.
 <!-- AUTOSTATUS:END -->

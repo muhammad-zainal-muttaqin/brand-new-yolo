@@ -1,0 +1,453 @@
+{
+  "metric_schema": "detection_like_classification",
+  "run_name": "p3ts_stage1_singlecls_yolo11n_640_s42_e30p10m30+p3ts_stage2_cls_yolo11n-cls_224_s42_e30p10m30",
+  "branch": "two_stage_end_to_end",
+  "candidate": "yolo11n_singlecls+yolo11ncls_gtcrop",
+  "checkpoint": "best",
+  "stage1_weight": "/workspace/brand-new-yolo/runs/detect/runs/e0/p3ts_stage1_singlecls_yolo11n_640_s42_e30p10m30/weights/best.pt",
+  "stage2_weight": "/workspace/brand-new-yolo/runs/classify/runs/e0/p3ts_stage2_cls_yolo11n-cls_224_s42_e30p10m30/weights/best.pt",
+  "split": "val",
+  "optimized_conf": 0.25,
+  "precision": 0.4730043060616098,
+  "recall": 0.5125628140703518,
+  "f1": 0.49198966408268735,
+  "accuracy": 0.5125628140703518,
+  "support_total": 2786,
+  "predicted_total": 3019,
+  "missed_gt_total": 594,
+  "false_positive_total": 827,
+  "macro_avg": {
+    "precision": 0.49592859653930665,
+    "recall": 0.4940654395012844,
+    "f1": 0.48118928041209813
+  },
+  "weighted_avg": {
+    "precision": 0.467209725764733,
+    "recall": 0.5125628140703519,
+    "f1": 0.4731341511805755
+  },
+  "per_class": [
+    {
+      "class_idx": 0,
+      "class_name": "B1",
+      "precision": 0.6987951807228916,
+      "recall": 0.770764119601329,
+      "f1": 0.7330173775671407,
+      "support": 301,
+      "predicted": 332,
+      "true_positive": 232,
+      "false_positive": 100,
+      "false_negative": 69,
+      "missed_gt": 30
+    },
+    {
+      "class_idx": 1,
+      "class_name": "B2",
+      "precision": 0.4697406340057637,
+      "recall": 0.26633986928104575,
+      "f1": 0.3399374348279458,
+      "support": 612,
+      "predicted": 347,
+      "true_positive": 163,
+      "false_positive": 184,
+      "false_negative": 449,
+      "missed_gt": 106
+    },
+    {
+      "class_idx": 2,
+      "class_name": "B3",
+      "precision": 0.46041666666666664,
+      "recall": 0.6702047005307051,
+      "f1": 0.5458474837912937,
+      "support": 1319,
+      "predicted": 1920,
+      "true_positive": 884,
+      "false_positive": 1036,
+      "false_negative": 435,
+      "missed_gt": 268
+    },
+    {
+      "class_idx": 3,
+      "class_name": "B4",
+      "precision": 0.3547619047619048,
+      "recall": 0.26895306859205775,
+      "f1": 0.3059548254620123,
+      "support": 554,
+      "predicted": 420,
+      "true_positive": 149,
+      "false_positive": 271,
+      "false_negative": 405,
+      "missed_gt": 190
+    }
+  ],
+  "confusion_matrix": {
+    "classes": [
+      "B1",
+      "B2",
+      "B3",
+      "B4"
+    ],
+    "counts": [
+      [
+        232,
+        38,
+        1,
+        0
+      ],
+      [
+        47,
+        163,
+        283,
+        13
+      ],
+      [
+        0,
+        76,
+        884,
+        91
+      ],
+      [
+        1,
+        4,
+        210,
+        149
+      ]
+    ],
+    "row_normalized": [
+      {
+        "pred_0": 0.770764119601329,
+        "pred_1": 0.12624584717607973,
+        "pred_2": 0.0033222591362126247,
+        "pred_3": 0.0,
+        "missed_gt": 0.09966777408637874
+      },
+      {
+        "pred_0": 0.07679738562091504,
+        "pred_1": 0.26633986928104575,
+        "pred_2": 0.4624183006535948,
+        "pred_3": 0.021241830065359478,
+        "missed_gt": 0.17320261437908496
+      },
+      {
+        "pred_0": 0.0,
+        "pred_1": 0.0576194086429113,
+        "pred_2": 0.6702047005307051,
+        "pred_3": 0.06899166034874905,
+        "missed_gt": 0.20318423047763456
+      },
+      {
+        "pred_0": 0.0018050541516245488,
+        "pred_1": 0.007220216606498195,
+        "pred_2": 0.37906137184115524,
+        "pred_3": 0.26895306859205775,
+        "missed_gt": 0.34296028880866425
+      }
+    ],
+    "missed_by_class": {
+      "B1": 30,
+      "B2": 106,
+      "B3": 268,
+      "B4": 190
+    },
+    "false_positive_by_class": {
+      "B1": 52,
+      "B2": 66,
+      "B3": 542,
+      "B4": 167
+    },
+    "largest_confusions": [
+      {
+        "true_class": "B2",
+        "pred_class": "B3",
+        "count": 283
+      },
+      {
+        "true_class": "B4",
+        "pred_class": "B3",
+        "count": 210
+      },
+      {
+        "true_class": "B3",
+        "pred_class": "B4",
+        "count": 91
+      },
+      {
+        "true_class": "B3",
+        "pred_class": "B2",
+        "count": 76
+      },
+      {
+        "true_class": "B2",
+        "pred_class": "B1",
+        "count": 47
+      },
+      {
+        "true_class": "B1",
+        "pred_class": "B2",
+        "count": 38
+      }
+    ]
+  },
+  "top_errors": [
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0079_1.jpg",
+      "tp": 0,
+      "confusions": 5,
+      "missed_gt": 2,
+      "false_positive": 3,
+      "error_score": 17,
+      "categories": "B2_B3_confusion;B3_B4_confusion;false_positive",
+      "branch": "two_stage_end_to_end",
+      "candidate": "detector+classifier",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0094_3.jpg",
+      "tp": 1,
+      "confusions": 4,
+      "missed_gt": 3,
+      "false_positive": 3,
+      "error_score": 17,
+      "categories": "B2_B3_confusion;B3_B4_confusion;B4_missed;false_positive",
+      "branch": "two_stage_end_to_end",
+      "candidate": "detector+classifier",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0250_2.jpg",
+      "tp": 1,
+      "confusions": 1,
+      "missed_gt": 6,
+      "false_positive": 3,
+      "error_score": 17,
+      "categories": "B3_B4_confusion;B4_missed;false_positive",
+      "branch": "two_stage_end_to_end",
+      "candidate": "detector+classifier",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0392_1.jpg",
+      "tp": 1,
+      "confusions": 2,
+      "missed_gt": 3,
+      "false_positive": 6,
+      "error_score": 16,
+      "categories": "B2_B3_confusion;B4_missed;false_positive",
+      "branch": "two_stage_end_to_end",
+      "candidate": "detector+classifier",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0293_4.jpg",
+      "tp": 1,
+      "confusions": 1,
+      "missed_gt": 4,
+      "false_positive": 6,
+      "error_score": 16,
+      "categories": "B3_B4_confusion;false_positive",
+      "branch": "two_stage_end_to_end",
+      "candidate": "detector+classifier",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0384_3.jpg",
+      "tp": 1,
+      "confusions": 4,
+      "missed_gt": 2,
+      "false_positive": 3,
+      "error_score": 15,
+      "categories": "B2_B3_confusion;B3_B4_confusion;B4_missed;false_positive",
+      "branch": "two_stage_end_to_end",
+      "candidate": "detector+classifier",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0546_2.jpg",
+      "tp": 1,
+      "confusions": 3,
+      "missed_gt": 4,
+      "false_positive": 1,
+      "error_score": 15,
+      "categories": "B2_B3_confusion;B4_missed;false_positive",
+      "branch": "two_stage_end_to_end",
+      "candidate": "detector+classifier",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0066_1.jpg",
+      "tp": 1,
+      "confusions": 3,
+      "missed_gt": 2,
+      "false_positive": 5,
+      "error_score": 15,
+      "categories": "B2_B3_confusion;B3_B4_confusion;B4_missed;false_positive",
+      "branch": "two_stage_end_to_end",
+      "candidate": "detector+classifier",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0279_1.jpg",
+      "tp": 0,
+      "confusions": 2,
+      "missed_gt": 5,
+      "false_positive": 1,
+      "error_score": 15,
+      "categories": "B2_B3_confusion;B4_missed;false_positive",
+      "branch": "two_stage_end_to_end",
+      "candidate": "detector+classifier",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0221_1.jpg",
+      "tp": 2,
+      "confusions": 2,
+      "missed_gt": 3,
+      "false_positive": 5,
+      "error_score": 15,
+      "categories": "B2_B3_confusion;false_positive",
+      "branch": "two_stage_end_to_end",
+      "candidate": "detector+classifier",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0352_1.jpg",
+      "tp": 1,
+      "confusions": 1,
+      "missed_gt": 4,
+      "false_positive": 5,
+      "error_score": 15,
+      "categories": "B2_B3_confusion;B4_missed;false_positive",
+      "branch": "two_stage_end_to_end",
+      "candidate": "detector+classifier",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0352_4.jpg",
+      "tp": 0,
+      "confusions": 0,
+      "missed_gt": 4,
+      "false_positive": 7,
+      "error_score": 15,
+      "categories": "B4_missed;false_positive",
+      "branch": "two_stage_end_to_end",
+      "candidate": "detector+classifier",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0019_4.jpg",
+      "tp": 0,
+      "confusions": 6,
+      "missed_gt": 0,
+      "false_positive": 1,
+      "error_score": 13,
+      "categories": "B2_B3_confusion;B3_B4_confusion;false_positive",
+      "branch": "two_stage_end_to_end",
+      "candidate": "detector+classifier",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0043_2.jpg",
+      "tp": 0,
+      "confusions": 5,
+      "missed_gt": 1,
+      "false_positive": 1,
+      "error_score": 13,
+      "categories": "B2_B3_confusion;false_positive",
+      "branch": "two_stage_end_to_end",
+      "candidate": "detector+classifier",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0546_1.jpg",
+      "tp": 2,
+      "confusions": 4,
+      "missed_gt": 2,
+      "false_positive": 1,
+      "error_score": 13,
+      "categories": "B2_B3_confusion;B3_B4_confusion;B4_missed;false_positive",
+      "branch": "two_stage_end_to_end",
+      "candidate": "detector+classifier",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0745_1.jpg",
+      "tp": 2,
+      "confusions": 3,
+      "missed_gt": 3,
+      "false_positive": 1,
+      "error_score": 13,
+      "categories": "B2_B3_confusion;B3_B4_confusion;B4_missed;false_positive",
+      "branch": "two_stage_end_to_end",
+      "candidate": "detector+classifier",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0019_2.jpg",
+      "tp": 2,
+      "confusions": 3,
+      "missed_gt": 2,
+      "false_positive": 3,
+      "error_score": 13,
+      "categories": "B2_B3_confusion;B3_B4_confusion;false_positive",
+      "branch": "two_stage_end_to_end",
+      "candidate": "detector+classifier",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0418_2.jpg",
+      "tp": 1,
+      "confusions": 2,
+      "missed_gt": 3,
+      "false_positive": 3,
+      "error_score": 13,
+      "categories": "B3_B4_confusion;false_positive",
+      "branch": "two_stage_end_to_end",
+      "candidate": "detector+classifier",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/DAMIMAS_A21B_0512_1.jpg",
+      "tp": 3,
+      "confusions": 2,
+      "missed_gt": 2,
+      "false_positive": 5,
+      "error_score": 13,
+      "categories": "B2_B3_confusion;B4_missed;false_positive",
+      "branch": "two_stage_end_to_end",
+      "candidate": "detector+classifier",
+      "checkpoint": "best",
+      "split": "val"
+    },
+    {
+      "image_path": "/workspace/Dataset-Sawit-YOLO/images/val/LONSUM_A21A_0048_3.jpg",
+      "tp": 0,
+      "confusions": 2,
+      "missed_gt": 2,
+      "false_positive": 5,
+      "error_score": 13,
+      "categories": "B2_B3_confusion;false_positive",
+      "branch": "two_stage_end_to_end",
+      "candidate": "detector+classifier",
+      "checkpoint": "best",
+      "split": "val"
+    }
+  ]
+}

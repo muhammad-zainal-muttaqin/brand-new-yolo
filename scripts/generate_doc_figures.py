@@ -90,6 +90,14 @@ def _candidate_color(candidate: str) -> str:
     return palette.get(candidate, "#64748B")
 
 
+def _metric_color(metric: str) -> str:
+    aliases = {
+        "map50": "mAP50",
+        "map50_95": "mAP50-95",
+    }
+    return METRIC_COLORS.get(metric, METRIC_COLORS.get(aliases.get(metric, ""), "#64748B"))
+
+
 def _canonical_class_order(columns: list[str]) -> list[str]:
     return [name for name in ["B1", "B2", "B3", "B4"] if name in columns]
 
@@ -511,7 +519,7 @@ def f11_threshold_sweep() -> None:
         ("precision", "Precision", METRIC_COLORS["precision"]),
         ("recall", "Recall", METRIC_COLORS["recall"]),
         ("map50", "mAP50", METRIC_COLORS["mAP50"]),
-        ("map50_95", "mAP50-95", METRIC_COLORS["mAP50_95"]),
+        ("map50_95", "mAP50-95", METRIC_COLORS["mAP50-95"]),
     ]
     for ax, (metric, title, color) in zip(axes.flat, metric_specs):
         _style_ax(ax)
@@ -636,7 +644,7 @@ def f14_training_curves() -> None:
         ax = axes[0, col_idx]
         _style_ax(ax)
         ax.plot(epochs, df["metrics/mAP50(B)"], lw=2.5, color=METRIC_COLORS["mAP50"], label="mAP50", zorder=3)
-        ax.plot(epochs, df["metrics/mAP50-95(B)"], lw=2.5, color=METRIC_COLORS["mAP50_95"], label="mAP50-95", zorder=3)
+        ax.plot(epochs, df["metrics/mAP50-95(B)"], lw=2.5, color=METRIC_COLORS["mAP50-95"], label="mAP50-95", zorder=3)
         ax.set_title(f"{candidate} — Validation mAP", fontsize=14, fontweight="bold", color=_candidate_color(candidate))
         ax.set_ylabel("Score", fontsize=11)
         ax.legend(fontsize=9, framealpha=0.9)
@@ -707,7 +715,7 @@ def f17_cross_phase_comparison() -> None:
                 vals,
                 width,
                 label=metric_label,
-                color=METRIC_COLORS[metric],
+                color=_metric_color(metric),
                 edgecolor="white",
             )
             for bar in bars:
@@ -719,7 +727,7 @@ def f17_cross_phase_comparison() -> None:
                     va="bottom",
                     fontsize=8,
                     fontweight="bold",
-                    color=METRIC_COLORS[metric],
+                    color=_metric_color(metric),
                 )
         ax.set_xticks(x)
         ax.set_xticklabels(labels, fontsize=10)
