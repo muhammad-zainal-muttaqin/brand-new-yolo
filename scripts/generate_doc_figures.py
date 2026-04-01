@@ -245,6 +245,90 @@ def f5_architecture_benchmark() -> None:
 
 
 def f6_one_vs_two_stage() -> None:
+    p3 = _phase3_csv("final_metrics.csv")
+    required = {"branch", "candidate", "checkpoint", "split", "map50", "map50_95", "top1_acc", "weighted_f1"}
+    if not p3.empty and required.issubset(p3.columns):
+        one_stage = p3[
+            (p3["branch"] == "one_stage")
+            & (p3["checkpoint"] == "last")
+            & (p3["split"] == "test")
+        ].copy()
+        stage1 = p3[
+            (p3["branch"] == "two_stage_stage1")
+            & (p3["checkpoint"] == "last")
+            & (p3["split"] == "test")
+        ].copy()
+        gtcrop = p3[
+            (p3["branch"] == "two_stage_gtcrop")
+            & (p3["checkpoint"] == "last")
+            & (p3["split"] == "test")
+        ].copy()
+        e2e = p3[
+            (p3["branch"] == "two_stage_end_to_end")
+            & (p3["checkpoint"] == "last")
+            & (p3["split"] == "test")
+        ].copy()
+
+        if not one_stage.empty and not stage1.empty and not gtcrop.empty and not e2e.empty:
+            one_stage["map50"] = pd.to_numeric(one_stage["map50"], errors="coerce").fillna(0.0)
+            selected = one_stage.sort_values("map50", ascending=False).iloc[0]
+
+            categories = [
+                f"One-Stage\n{selected['candidate']}\nmAP50",
+                f"One-Stage\n{selected['candidate']}\nWeighted F1",
+                "Two-Stage\nStage1\nmAP50-95",
+                "Two-Stage\nGT-crop\nTop-1",
+                "Two-Stage\nEnd-to-End\nWeighted F1",
+            ]
+            values = [
+                float(selected["map50"]),
+                float(selected["weighted_f1"]),
+                float(stage1.iloc[0]["map50_95"]),
+                float(gtcrop.iloc[0]["top1_acc"]),
+                float(e2e.iloc[0]["weighted_f1"]),
+            ]
+            colors_list = ["#1D4ED8", "#1D4ED8", "#F97316", "#10B981", "#F97316"]
+
+            fig, ax = plt.subplots(figsize=(11.5, 5.8), dpi=DPI)
+            _style_ax(ax)
+            bars = ax.bar(categories, values, color=colors_list, edgecolor="white", width=0.62)
+            for idx, bar in enumerate(bars):
+                if idx == 3:
+                    bar.set_hatch("//")
+            for bar in bars:
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    bar.get_height() + 0.01,
+                    f"{bar.get_height():.4f}",
+                    ha="center",
+                    va="bottom",
+                    fontsize=10,
+                    fontweight="bold",
+                    color="#334155",
+                )
+            ax.set_ylabel("Score", fontsize=12)
+            ax.set_title("One-Stage vs Two-Stage Reference (Phase 3 Final)", fontsize=16, fontweight="bold", pad=14)
+            ax.grid(axis="y", color="#E2E8F0", lw=0.8)
+            ax.set_ylim(0, max(values) * 1.22)
+            from matplotlib.patches import Patch
+            ax.legend(handles=[
+                Patch(facecolor="#1D4ED8", label="One-stage end-to-end candidate utama"),
+                Patch(facecolor="#F97316", label="Two-stage deployed components"),
+                Patch(facecolor="#10B981", hatch="//", label="GT-crop classifier upper bound"),
+            ], fontsize=10, framealpha=0.9)
+            fig.text(
+                0.5,
+                0.01,
+                "GT-crop adalah upper bound classifier; deployed result ada di end-to-end weighted F1.",
+                ha="center",
+                va="bottom",
+                fontsize=9,
+                color="#475569",
+            )
+            fig.tight_layout(rect=(0, 0.05, 1, 1))
+            _save(fig, P1 / "figures" / "p1_one_vs_two_stage.png")
+            return
+
     one = pd.read_csv(P1 / "one_stage_results.csv")
     two = pd.read_csv(P1 / "two_stage_results.csv")
     fig, ax = plt.subplots(figsize=(10, 5.5), dpi=DPI)

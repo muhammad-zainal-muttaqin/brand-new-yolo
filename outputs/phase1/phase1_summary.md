@@ -32,12 +32,13 @@ Dari [one_stage_results.csv](one_stage_results.csv), one-stage detector (yolo11n
 
 ### Two-stage feasibility
 
-Dari [two_stage_results.csv](two_stage_results.csv), pipeline two-stage terdiri dari:
+Pada benchmark final Phase 3, cabang two-stage yang dibangun ulang menghasilkan:
 
-- **Stage-1**: single-class detector (mendeteksi "buah sawit" tanpa membedakan kelas) → mean mAP50-95: **0.3850**
-- **Stage-2**: classifier pada ground-truth crops → mean top-1 accuracy: **63.8%**
+- **Stage-1** (`last`, `test`): single-class detector → **mAP50 0.8130**, **mAP50-95 0.3860**
+- **Stage-2 GT-crop** (`last`, `test`): classifier pada ground-truth crops → **top-1 64.85%**, **weighted F1 0.6337**
+- **Two-stage end-to-end** (`last`, `test`): detector + classifier → **precision 0.4840**, **recall 0.5053**, **weighted F1 0.4802**
 
-Penting: stage-2 diukur pada **ground-truth crops**, bukan prediksi stage-1. Artinya, 63.8% itu adalah *upper bound* — performa end-to-end pasti lebih rendah karena stage-1 tidak sempurna.
+Penting: GT-crop classifier tetap hanya *upper bound*. Hasil operasional sebenarnya ada di jalur **end-to-end**, karena di situ error detector dan classifier bertemu dalam pipeline yang sama.
 
 ![Perbandingan one-stage vs two-stage](figures/p1_one_vs_two_stage.png)
 

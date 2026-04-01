@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import csv
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -166,6 +167,24 @@ def summarize_weights() -> str:
     return '\n'.join(lines)
 
 
+def sync_root_readme_figures() -> None:
+    mapping = {
+        ROOT / 'outputs/phase0/figures/p0_resolution_comparison.png': ROOT / 'figures/p0_resolution_comparison.png',
+        ROOT / 'outputs/phase0/figures/p0_learning_curve.png': ROOT / 'figures/p0_learning_curve.png',
+        ROOT / 'outputs/phase1/figures/p1_one_vs_two_stage.png': ROOT / 'figures/p1_one_vs_two_stage.png',
+        ROOT / 'outputs/phase1/figures/p1_architecture_benchmark.png': ROOT / 'figures/p1_architecture_benchmark.png',
+        ROOT / 'outputs/phase1/figures/p1_per_class_heatmap.png': ROOT / 'figures/p1_per_class_heatmap.png',
+        ROOT / 'outputs/phase2/figures/p2_imbalance_sweep.png': ROOT / 'figures/p2_imbalance_sweep.png',
+        ROOT / 'outputs/phase2/figures/p2_lr_sweep.png': ROOT / 'figures/p2_lr_sweep.png',
+        ROOT / 'outputs/phase2/figures/p2_batch_aug_sweep.png': ROOT / 'figures/p2_batch_aug_sweep.png',
+        ROOT / 'outputs/phase2/figures/p2_tuning_summary.png': ROOT / 'figures/p2_tuning_summary.png',
+    }
+    (ROOT / 'figures').mkdir(parents=True, exist_ok=True)
+    for src, dst in mapping.items():
+        if src.exists():
+            shutil.copy2(src, dst)
+
+
 def main() -> None:
     readme = f"""# Brand New YOLO — E0 End-to-End Report
 
@@ -215,6 +234,7 @@ Urutan biologis yang dipakai konsisten di repo ini adalah: **`B1 -> B2 -> B3 -> 
 - Seluruh workflow diatur untuk menyimpan hasil, commit, lalu push.
 """
     (ROOT / 'README.md').write_text(readme.strip() + '\n', encoding='utf-8')
+    sync_root_readme_figures()
 
 
 if __name__ == '__main__':
