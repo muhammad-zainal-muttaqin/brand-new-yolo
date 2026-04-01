@@ -507,6 +507,25 @@ Phase 2 menutup pertanyaan "apakah tuning bisa membantu?" dengan jawaban "tidak 
 ## Two-Stage End-to-End (`last.pt`, test)
 
 - precision `0.4840` | recall `0.5053` | F1 `0.4944` | accuracy `0.5053`
+## Phase 3 Figure Highlights
+
+Figure berikut langsung mengikuti kontrak final Phase 3: dua kandidat one-stage utama, pelaporan `val` dan `test`, pembandingan `best` vs `last`, cabang two-stage GT-crop dan end-to-end, serta confusion 4 kelas penuh.
+
+![Training curves kandidat utama](figures/p3_training_curves.png)
+
+![Perbandingan kandidat utama Phase 3](figures/p3_cross_phase_comparison.png)
+
+![Best vs last pada val dan test](figures/p3_checkpoint_comparison.png)
+
+![Ringkasan branch final Phase 3](figures/p3_pipeline_reference.png)
+
+![Metrik per kelas kandidat utama](figures/p3_per_class_metrics.png)
+
+![Threshold sweep detail](figures/p3_threshold_sweep_detail.png)
+
+![Confusion overview 4 kelas](figures/p3_confusion_overview.png)
+
+![Distribusi error utama](figures/p3_error_distribution.png)
 
 ## Final Metrics Table
 

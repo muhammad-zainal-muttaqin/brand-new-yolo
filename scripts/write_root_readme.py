@@ -104,6 +104,27 @@ def summarize_phase2() -> str:
 
 def summarize_phase3() -> str:
     lines = [read_text(ROOT / 'outputs/phase3/final_report.md')]
+    figure_lines = [
+        '## Phase 3 Figure Highlights\n',
+        'Figure berikut langsung mengikuti kontrak final Phase 3: dua kandidat one-stage utama, pelaporan `val` dan `test`, pembandingan `best` vs `last`, cabang two-stage GT-crop dan end-to-end, serta confusion 4 kelas penuh.',
+        '',
+        '![Training curves kandidat utama](figures/p3_training_curves.png)',
+        '',
+        '![Perbandingan kandidat utama Phase 3](figures/p3_cross_phase_comparison.png)',
+        '',
+        '![Best vs last pada val dan test](figures/p3_checkpoint_comparison.png)',
+        '',
+        '![Ringkasan branch final Phase 3](figures/p3_pipeline_reference.png)',
+        '',
+        '![Metrik per kelas kandidat utama](figures/p3_per_class_metrics.png)',
+        '',
+        '![Threshold sweep detail](figures/p3_threshold_sweep_detail.png)',
+        '',
+        '![Confusion overview 4 kelas](figures/p3_confusion_overview.png)',
+        '',
+        '![Distribusi error utama](figures/p3_error_distribution.png)',
+    ]
+    lines.append('\n'.join(figure_lines))
     metrics = read_csv_rows(ROOT / 'outputs/phase3/final_metrics.csv')
     if metrics:
         lines.append('\n## Final Metrics Table\n')
@@ -178,6 +199,14 @@ def sync_root_readme_figures() -> None:
         ROOT / 'outputs/phase2/figures/p2_lr_sweep.png': ROOT / 'figures/p2_lr_sweep.png',
         ROOT / 'outputs/phase2/figures/p2_batch_aug_sweep.png': ROOT / 'figures/p2_batch_aug_sweep.png',
         ROOT / 'outputs/phase2/figures/p2_tuning_summary.png': ROOT / 'figures/p2_tuning_summary.png',
+        ROOT / 'outputs/phase3/figures/p3_training_curves.png': ROOT / 'figures/p3_training_curves.png',
+        ROOT / 'outputs/phase3/figures/p3_cross_phase_comparison.png': ROOT / 'figures/p3_cross_phase_comparison.png',
+        ROOT / 'outputs/phase3/figures/p3_checkpoint_comparison.png': ROOT / 'figures/p3_checkpoint_comparison.png',
+        ROOT / 'outputs/phase3/figures/p3_pipeline_reference.png': ROOT / 'figures/p3_pipeline_reference.png',
+        ROOT / 'outputs/phase3/figures/p3_per_class_metrics.png': ROOT / 'figures/p3_per_class_metrics.png',
+        ROOT / 'outputs/phase3/figures/p3_threshold_sweep_detail.png': ROOT / 'figures/p3_threshold_sweep_detail.png',
+        ROOT / 'outputs/phase3/figures/p3_confusion_overview.png': ROOT / 'figures/p3_confusion_overview.png',
+        ROOT / 'outputs/phase3/figures/p3_error_distribution.png': ROOT / 'figures/p3_error_distribution.png',
     }
     (ROOT / 'figures').mkdir(parents=True, exist_ok=True)
     for src, dst in mapping.items():

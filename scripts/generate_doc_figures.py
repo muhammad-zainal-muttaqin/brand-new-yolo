@@ -121,6 +121,54 @@ def _phase3_one_stage_metrics(split: str = "test", checkpoint: str = "last") -> 
     ].copy()
 
 
+def _phase3_pick_row(
+    df: pd.DataFrame,
+    *,
+    branch: str,
+    checkpoint: str,
+    split: str,
+    candidate: str | None = None,
+) -> pd.Series | None:
+    if df.empty:
+        return None
+    subset = df[
+        (df["branch"] == branch)
+        & (df["checkpoint"] == checkpoint)
+        & (df["split"] == split)
+    ].copy()
+    if candidate is not None:
+        subset = subset[subset["candidate"] == candidate]
+    if subset.empty:
+        return None
+    return subset.iloc[0]
+
+
+def _phase3_confusion_counts(
+    df: pd.DataFrame,
+    *,
+    branch: str,
+    checkpoint: str,
+    split: str,
+    candidate: str | None = None,
+) -> tuple[list[str], pd.DataFrame] | tuple[None, None]:
+    if df.empty:
+        return None, None
+    subset = df[
+        (df["branch"] == branch)
+        & (df["checkpoint"] == checkpoint)
+        & (df["split"] == split)
+    ].copy()
+    if candidate is not None:
+        subset = subset[subset["candidate"] == candidate]
+    if subset.empty:
+        return None, None
+    class_order = _canonical_class_order(subset.columns.tolist())
+    if not class_order:
+        return None, None
+    matrix = subset.set_index("true_class").reindex(class_order)
+    return class_order, matrix
+
+
 # ===================================================================
 # Phase 0
 # ===================================================================
@@ -875,6 +923,261 @@ def f18_confusion_heatmaps() -> None:
         _save(fig, P3 / "figures" / "confusion" / out_name)
 
 
+def f19_checkpoint_comparison() -> None:
+    df = _phase3_csv("final_metrics.csv")
+    if df.empty:
+        return
+    required = {"branch", "candidate", "checkpoint", "split", "map50", "map50_95", "weighted_f1"}
+    if not required.issubset(df.columns):
+        print("  [SKIP] final_metrics.csv still uses the old Phase 3 schema")
+        return
+    df = df[df["branch"] == "one_stage"].copy()
+    if df.empty:
+        print("  [SKIP] no one-stage rows for checkpoint comparison")
+        return
+
+    candidates = _ordered_candidates(df["candidate"].dropna().unique().tolist())
+    split_order = ["val", "test"]
+    checkpoint_order = ["best", "last"]
+    metric_specs = [
+        ("map50", "mAP50"),
+        ("map50_95", "mAP50-95"),
+        ("weighted_f1", "Weighted F1"),
+    ]
+
+    fig, axes = plt.subplots(1, len(candidates), figsize=(6.4 * len(candidates), 6), dpi=DPI, sharey=True)
+    if len(candidates) == 1:
+        axes = [axes]
+    fig.suptitle("Best vs Last pada Val dan Test — Kandidat One-Stage Phase 3", fontsize=17, fontweight="bold", y=1.02)
+
+    for ax, candidate in zip(axes, candidates):
+        _style_ax(ax)
+        labels = [f"{checkpoint}\n{split}" for checkpoint in checkpoint_order for split in split_order]
+        x = np.arange(len(labels))
+        width = 0.22
+        for idx, (metric, label) in enumerate(metric_specs):
+            vals = []
+            for checkpoint in checkpoint_order:
+                for split in split_order:
+                    row = _phase3_pick_row(df, branch="one_stage", candidate=candidate, checkpoint=checkpoint, split=split)
+                    vals.append(float(row[metric]) if row is not None and pd.notna(row[metric]) else 0.0)
+            bars = ax.bar(
+                x + (idx - 1) * width,
+                vals,
+                width,
+                color=_metric_color(metric),
+                edgecolor="white",
+                label=label,
+            )
+            for bar in bars:
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    bar.get_height() + 0.008,
+                    f"{bar.get_height():.3f}",
+                    ha="center",
+                    va="bottom",
+                    fontsize=8,
+                    fontweight="bold",
+                    color=_metric_color(metric),
+                )
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels, fontsize=10)
+        ax.set_ylim(0, 0.75)
+        ax.set_title(candidate, fontsize=14, fontweight="bold", color=_candidate_color(candidate))
+        ax.grid(axis="y", color="#E2E8F0", lw=0.8)
+    axes[0].set_ylabel("Score", fontsize=12)
+    axes[-1].legend(fontsize=9, framealpha=0.9)
+    fig.tight_layout()
+    _save(fig, P3 / "figures" / "p3_checkpoint_comparison.png")
+
+
+def f20_pipeline_reference() -> None:
+    df = _phase3_csv("final_metrics.csv")
+    if df.empty:
+        return
+    required = {"branch", "candidate", "checkpoint", "split", "map50", "weighted_f1", "top1_acc", "precision", "recall"}
+    if not required.issubset(df.columns):
+        print("  [SKIP] final_metrics.csv still uses the old Phase 3 schema")
+        return
+
+    stage1_row = _phase3_pick_row(df, branch="two_stage_stage1", checkpoint="last", split="test")
+    gtcrop_row = _phase3_pick_row(df, branch="two_stage_gtcrop", checkpoint="last", split="test")
+    e2e_row = _phase3_pick_row(df, branch="two_stage_end_to_end", checkpoint="last", split="test")
+    one_stage_rows = df[
+        (df["branch"] == "one_stage")
+        & (df["checkpoint"] == "last")
+        & (df["split"] == "test")
+    ].copy()
+    if one_stage_rows.empty or stage1_row is None or gtcrop_row is None or e2e_row is None:
+        print("  [SKIP] incomplete Phase 3 rows for pipeline reference")
+        return
+    one_stage_rows["map50"] = pd.to_numeric(one_stage_rows["map50"], errors="coerce")
+    one_stage_rows["weighted_f1"] = pd.to_numeric(one_stage_rows["weighted_f1"], errors="coerce")
+    one_stage_rows = one_stage_rows.sort_values("map50", ascending=False)
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6), dpi=DPI)
+    fig.suptitle("Ringkasan Branch Final Phase 3", fontsize=17, fontweight="bold", y=1.02)
+
+    ax = axes[0]
+    _style_ax(ax)
+    labels = [
+        f"One-stage\n{row['candidate']}\nmAP50" for _, row in one_stage_rows.iterrows()
+    ] + [
+        "Two-stage\nStage1\nmAP50",
+        "Two-stage\nGT-crop\nTop-1",
+        "Two-stage\nEnd-to-End\nWeighted F1",
+    ]
+    values = [float(row["map50"]) for _, row in one_stage_rows.iterrows()] + [
+        float(stage1_row["map50"]),
+        float(gtcrop_row["top1_acc"]),
+        float(e2e_row["weighted_f1"]),
+    ]
+    colors_list = [
+        _candidate_color(row["candidate"]) for _, row in one_stage_rows.iterrows()
+    ] + ["#F97316", "#10B981", "#F97316"]
+    bars = ax.bar(labels, values, color=colors_list, edgecolor="white", width=0.62)
+    if len(bars) >= 1:
+        bars[-2].set_hatch("//")
+    for bar in bars:
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + 0.01,
+            f"{bar.get_height():.3f}",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+            fontweight="bold",
+            color="#334155",
+        )
+    ax.set_ylabel("Score", fontsize=12)
+    ax.set_ylim(0, max(values) * 1.2)
+    ax.set_title("Metrik Referensi per Branch (`last`, test)", fontsize=14, fontweight="bold")
+    ax.grid(axis="y", color="#E2E8F0", lw=0.8)
+
+    ax = axes[1]
+    _style_ax(ax)
+    deploy_rows = one_stage_rows.copy()
+    deploy_rows["label"] = deploy_rows["candidate"].apply(lambda value: f"One-stage\n{value}")
+    deploy_rows = pd.concat([
+        deploy_rows[["label", "precision", "recall", "weighted_f1"]],
+        pd.DataFrame([{
+            "label": "Two-stage\nEnd-to-End",
+            "precision": float(e2e_row["precision"]),
+            "recall": float(e2e_row["recall"]),
+            "weighted_f1": float(e2e_row["weighted_f1"]),
+        }]),
+    ], ignore_index=True)
+    x = np.arange(len(deploy_rows))
+    width = 0.24
+    for idx, (metric, label) in enumerate([
+        ("precision", "Precision"),
+        ("recall", "Recall"),
+        ("weighted_f1", "Weighted F1"),
+    ]):
+        bars = ax.bar(
+            x + (idx - 1) * width,
+            deploy_rows[metric].astype(float),
+            width,
+            color=_metric_color(metric),
+            edgecolor="white",
+            label=label,
+        )
+        for bar in bars:
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + 0.008,
+                f"{bar.get_height():.3f}",
+                ha="center",
+                va="bottom",
+                fontsize=8,
+                fontweight="bold",
+                color=_metric_color(metric),
+            )
+    ax.set_xticks(x)
+    ax.set_xticklabels(deploy_rows["label"].tolist(), fontsize=10)
+    ax.set_ylim(0, 0.72)
+    ax.set_title("Metrik Operasional End-to-End (`last`, test)", fontsize=14, fontweight="bold")
+    ax.grid(axis="y", color="#E2E8F0", lw=0.8)
+    ax.legend(fontsize=9, framealpha=0.9)
+
+    from matplotlib.patches import Patch
+    axes[0].legend(handles=[
+        Patch(facecolor="#1D4ED8", label="Kandidat one-stage"),
+        Patch(facecolor="#F97316", label="Komponen two-stage deployed"),
+        Patch(facecolor="#10B981", hatch="//", label="GT-crop upper bound"),
+    ], fontsize=9, framealpha=0.9, loc="upper right")
+    fig.tight_layout()
+    _save(fig, P3 / "figures" / "p3_pipeline_reference.png")
+
+
+def f21_confusion_overview() -> None:
+    df = _phase3_csv("confusion_matrix.csv")
+    if df.empty:
+        return
+    required = {"branch", "candidate", "checkpoint", "split", "true_class", "support"}
+    if not required.issubset(df.columns):
+        print("  [SKIP] confusion_matrix.csv still uses the old Phase 3 schema")
+        return
+
+    gtcrop_candidate = df[df["branch"] == "two_stage_gtcrop"]["candidate"].dropna().astype(str).head(1)
+    e2e_candidate = df[df["branch"] == "two_stage_end_to_end"]["candidate"].dropna().astype(str).head(1)
+    if gtcrop_candidate.empty or e2e_candidate.empty:
+        print("  [SKIP] missing two-stage confusion rows")
+        return
+
+    targets = [
+        ("one_stage", "yolo11m", "last", "test", "One-stage yolo11m"),
+        ("one_stage", "yolov8s", "last", "test", "One-stage yolov8s"),
+        ("two_stage_gtcrop", gtcrop_candidate.iloc[0], "last", "test", "Two-stage GT-crop"),
+        ("two_stage_end_to_end", e2e_candidate.iloc[0], "last", "test", "Two-stage end-to-end"),
+    ]
+
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10), dpi=DPI)
+    fig.suptitle("Confusion Matrix 4 Kelas — Ringkasan Phase 3 (`last`, test)", fontsize=17, fontweight="bold", y=1.02)
+
+    for ax, (branch, candidate, checkpoint, split, title) in zip(axes.flat, targets):
+        _style_ax(ax)
+        class_order, matrix = _phase3_confusion_counts(
+            df,
+            branch=branch,
+            candidate=candidate,
+            checkpoint=checkpoint,
+            split=split,
+        )
+        if class_order is None or matrix is None:
+            ax.axis("off")
+            continue
+        counts = matrix[class_order].fillna(0).astype(float).values
+        support = matrix["support"].fillna(0).astype(float).values.reshape(-1, 1)
+        norm = np.divide(counts, np.where(support == 0, 1.0, support))
+        im = ax.imshow(norm, cmap="YlOrRd", aspect="auto", vmin=0.0, vmax=max(0.65, float(norm.max())))
+        ax.set_xticks(range(len(class_order)))
+        ax.set_xticklabels(class_order, fontsize=11, fontweight="bold")
+        ax.set_yticks(range(len(class_order)))
+        ax.set_yticklabels(class_order, fontsize=11, fontweight="bold")
+        ax.set_xlabel("Predicted", fontsize=10)
+        ax.set_ylabel("Ground Truth", fontsize=10)
+        ax.set_title(title, fontsize=12, fontweight="bold", color=_candidate_color(candidate))
+        for row_idx in range(len(class_order)):
+            for col_idx in range(len(class_order)):
+                pct = norm[row_idx, col_idx]
+                count = int(counts[row_idx, col_idx])
+                color = "white" if pct >= 0.45 else "#1E293B"
+                ax.text(
+                    col_idx,
+                    row_idx,
+                    f"{count}\n{pct:.1%}",
+                    ha="center",
+                    va="center",
+                    fontsize=8.5,
+                    fontweight="bold",
+                    color=color,
+                )
+        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    fig.tight_layout()
+    _save(fig, P3 / "figures" / "p3_confusion_overview.png")
+
+
 # ===================================================================
 # Main
 # ===================================================================
@@ -884,7 +1187,8 @@ PHASE_FUNCS = {
     2: [f7_lr_sweep, f8_batch_aug_sweep, f9_tuning_summary, f16_imbalance_sweep],
     3: [f10_per_class_metrics, f11_threshold_sweep, f12_error_distribution,
         f13_error_by_image, f14_training_curves, f17_cross_phase_comparison,
-        f18_confusion_heatmaps],
+        f18_confusion_heatmaps, f19_checkpoint_comparison, f20_pipeline_reference,
+        f21_confusion_overview],
 }
 
 
