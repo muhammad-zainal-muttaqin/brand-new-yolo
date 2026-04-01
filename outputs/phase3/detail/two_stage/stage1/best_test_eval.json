@@ -1,0 +1,14 @@
+{
+  "metric_schema": "single_class_detection",
+  "run_name": "p3ts_stage1_singlecls_yolo11n_640_s42_e30p10m30",
+  "branch": "two_stage_stage1",
+  "candidate": "yolo11n",
+  "checkpoint": "best",
+  "weight_path": "/workspace/brand-new-yolo/runs/detect/runs/e0/p3ts_stage1_singlecls_yolo11n_640_s42_e30p10m30/weights/best.pt",
+  "split": "test",
+  "precision": 0.805422415461472,
+  "recall": 0.7398957904142087,
+  "f1": 0.7712698296562085,
+  "map50": 0.8179902877185272,
+  "map50_95": 0.38539295665058837
+}
