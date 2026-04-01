@@ -78,3 +78,4 @@ Untuk konteks keputusan, buka [outputs/phase3/final_report.md](../phase3/final_r
 - 2026-04-01T15:34:54Z | commit 57edb95 | phase3: add p3os_yolo11m_640_s42_e60fix
 - 2026-04-01T15:38:09Z | PENDING SYNC | phase3: add p3os_yolo11m_640_s42_e60fix
 - 2026-04-01T16:11:06Z | commit 72532c5 | phase3: add p3os_yolov8s_640_s42_e60fix
+- 2026-04-01T16:28:06Z | commit 0c377b6 | phase3: add p3ts_stage1_singlecls_yolo11n_640_s42_e30p10m30
