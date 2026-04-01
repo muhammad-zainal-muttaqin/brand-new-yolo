@@ -62,7 +62,7 @@ def summarize_phase1() -> str:
         for row in top3_rows:
             lines.append(
                 f"- Rank {row['rank']}: `{row['model']}` | mean mAP50 `{float(row['mean_map50']):.4f}` | "
-                f"mean mAP50-95 `{float(row['mean_map50_95']):.4f}` | mean confusion B2/B3 `{row['mean_confusion_b2_b3']}` | "
+                f"mean mAP50-95 `{float(row['mean_map50_95']):.4f}` | "
                 f"mean B4 recall `{row['mean_b4_recall']}`"
             )
     if lock:

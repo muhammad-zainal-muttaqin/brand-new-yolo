@@ -15,8 +15,8 @@ Repositori ini memuat eksekusi **E0 Baseline Experimental Protocol** untuk task 
 Urutan biologis yang dipakai konsisten di repo ini adalah: **`B1 -> B2 -> B3 -> B4` = paling matang ke paling belum matang**.
 
 ## Orchestrator Status
-- Status orchestrator: `running`
-- Started UTC: `2026-04-01T17:17:59Z`
+- Status orchestrator: `completed`
+- Completed UTC: `2026-04-01T17:27:33Z`
 
 ## Phase 0 — Validation & Calibration
 
@@ -153,16 +153,23 @@ Penting: stage-2 diukur pada **ground-truth crops**, bukan prediksi stage-1. Art
 
 ### Kenapa two-stage tidak dipilih
 
-Alasan utama bukan karena angka overall two-stage lebih rendah — itu sudah expected karena pipeline lebih panjang. Alasan yang sebenarnya ada di **confusion matrix stage-2 classifier** pada GT crops:
+Catatan ini sekarang mengacu ke hasil final Phase 3, bukan confusion matrix lama 2 kelas. Pada evaluasi **GT-crop classifier** `last/test`, confusion matrix penuhnya adalah:
 
-| | Prediksi B2 | Prediksi B3 |
-|---|---:|---:|
-| Ground truth B2 | 211 (correct) | **94** (confused → B3) |
-| Ground truth B3 | **334** (confused → B2) | 1,112 (correct) |
+| Ground truth \\ Prediksi | B1 | B2 | B3 | B4 |
+|---|---:|---:|---:|---:|
+| B1 | 297 | 36 | 3 | 0 |
+| B2 | 57 | 251 | 306 | 4 |
+| B3 | 2 | 152 | 1,072 | 117 |
+| B4 | 1 | 15 | 306 | 223 |
 
-Bahkan saat objek sudah dipotong sempurna menggunakan bounding box ground truth — menghilangkan semua noise dari background dan lokalisasi — classifier masih salah mengklasifikasikan B2 sebagai B3 pada **31% kasus** (94 dari 305). Lebih parah lagi, B3 salah jadi B2 pada 23% kasus (334 dari 1,446).
+Poin utamanya:
 
-Ini adalah temuan yang krusial. Kalau classifier tidak bisa membedakan B2 dan B3 bahkan pada kondisi ideal (GT crops), menambahkan complexity dua pipeline tidak akan menyelesaikan masalah fundamental ini. One-stage detector yang langsung mengoptimasi 4-class detection setidaknya bisa memanfaatkan konteks spasial (posisi relatif dalam tandan, ukuran relatif antar buah) yang hilang saat objek dipotong menjadi crop individual.
+- `B2` benar hanya `40.6%`, dan paling sering salah ke `B3` (`49.5%`).
+- `B4` benar hanya `40.9%`, dan paling sering salah ke `B3` (`56.1%`).
+- `B3` masih bocor ke `B2` dan `B4`, walaupun diagonalnya lebih kuat.
+- Pada jalur end-to-end, error detector memperparah hasil akhir, jadi cabang two-stage tidak memberi keuntungan operasional yang cukup.
+
+Jadi alasan utama tidak berubah: bukan sekadar karena pipeline two-stage lebih panjang, tetapi karena pemisahan kelas sulitnya masih lemah bahkan pada crop ground truth. One-stage tetap lebih layak sebagai pipeline utama.
 
 > **Keputusan: pipeline `one-stage`.**
 
@@ -228,9 +235,9 @@ Phase 1 menghasilkan dua keputusan yang dibawa ke fase selanjutnya:
 Setelah pipeline dan model di-lock, eksperimen lanjut ke Phase 2 untuk menjawab pertanyaan: apakah tuning hyperparameter bisa mendorong performa melewati ceiling yang terlihat di Phase 1? Buka [phase2_summary.md](../phase2/phase2_summary.md).
 ## Phase 1B Top-3 Canonical Architectures
 
-- Rank 1: `yolo11m.pt` | mean mAP50 `0.5298` | mean mAP50-95 `0.2570` | mean confusion B2/B3 `` | mean B4 recall `0.36732851985559567`
-- Rank 2: `yolov9c.pt` | mean mAP50 `0.5292` | mean mAP50-95 `0.2518` | mean confusion B2/B3 `` | mean B4 recall `0.351985559566787`
-- Rank 3: `yolov8s.pt` | mean mAP50 `0.5256` | mean mAP50-95 `0.2521` | mean confusion B2/B3 `` | mean B4 recall `0.41064981949458484`
+- Rank 1: `yolo11m.pt` | mean mAP50 `0.5298` | mean mAP50-95 `0.2570` | mean B4 recall `0.36732851985559567`
+- Rank 2: `yolov9c.pt` | mean mAP50 `0.5292` | mean mAP50-95 `0.2518` | mean B4 recall `0.351985559566787`
+- Rank 3: `yolov8s.pt` | mean mAP50 `0.5256` | mean mAP50-95 `0.2521` | mean B4 recall `0.41064981949458484`
 
 ## Locked Setup
 

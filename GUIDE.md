@@ -334,18 +334,18 @@ Semua ini harus dibaca bersama [outputs/phase2/phase2_summary.md](outputs/phase2
 
 ### 6.6 Phase 3 — Redefined
 
-- [ ] membaca [outputs/phase1/locked_setup.yaml](outputs/phase1/locked_setup.yaml) versi kontrak baru
-- [ ] restore dataset aktif ke `/workspace/Dataset-Sawit-YOLO`
-- [ ] benchmark one-stage `yolo11m.pt` dan `yolov8s.pt`
-- [ ] training one-stage hanya pada `train`
-- [ ] fixed `60 epoch` tanpa early stopping untuk kandidat utama
-- [ ] evaluasi `last.pt` dan `best.pt` pada `val` dan `test`
-- [ ] rebuild cabang two-stage dari nol
-- [ ] GT-crop dataset dibangun ulang
-- [ ] evaluasi two-stage GT-crop dan end-to-end
-- [ ] confusion matrix penuh 4 kelas digenerate
-- [ ] threshold sweep `0.1–0.5` untuk kandidat one-stage
-- [ ] tracking error utama
+- [x] membaca [outputs/phase1/locked_setup.yaml](outputs/phase1/locked_setup.yaml) versi kontrak baru
+- [x] restore dataset aktif ke `/workspace/Dataset-Sawit-YOLO`
+- [x] benchmark one-stage `yolo11m.pt` dan `yolov8s.pt`
+- [x] training one-stage hanya pada `train`
+- [x] fixed `60 epoch` tanpa early stopping untuk kandidat utama
+- [x] evaluasi `last.pt` dan `best.pt` pada `val` dan `test`
+- [x] rebuild cabang two-stage dari nol
+- [x] GT-crop dataset dibangun ulang
+- [x] evaluasi two-stage GT-crop dan end-to-end
+- [x] confusion matrix penuh 4 kelas digenerate
+- [x] threshold sweep `0.1–0.5` untuk kandidat one-stage
+- [x] tracking error utama
 - [ ] deploy check ditandai **deferred**
 - [ ] final report dan final evaluation ditulis ulang
 
