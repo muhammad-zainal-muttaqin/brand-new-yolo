@@ -1,21 +1,21 @@
 # Latest Execution Status
 
-- Timestamp UTC: `2026-04-01T16:11:02.100737+00:00`
+- Timestamp UTC: `2026-04-01T16:28:02.763141+00:00`
 - Phase: `phase3`
-- Run name: `p3os_yolov8s_640_s42_e60fix`
-- Model: `yolov8s.pt`
+- Run name: `p3ts_stage1_singlecls_yolo11n_640_s42_e30p10m30`
+- Model: `yolo11n.pt`
 - Image size: `640`
-- Epochs: `60`
+- Epochs: `30`
 - Batch: `16`
 - Seed: `42`
 - Eval split: `val`
 - Status: **completed**
-- Save dir: `/workspace/brand-new-yolo/runs/detect/runs/e0/p3os_yolov8s_640_s42_e60fix`
-- Best weight: `/workspace/brand-new-yolo/runs/detect/runs/e0/p3os_yolov8s_640_s42_e60fix/weights/best.pt`
-- Last weight: `/workspace/brand-new-yolo/runs/detect/runs/e0/p3os_yolov8s_640_s42_e60fix/weights/last.pt`
+- Save dir: `/workspace/brand-new-yolo/runs/detect/runs/e0/p3ts_stage1_singlecls_yolo11n_640_s42_e30p10m30`
+- Best weight: `/workspace/brand-new-yolo/runs/detect/runs/e0/p3ts_stage1_singlecls_yolo11n_640_s42_e30p10m30/weights/best.pt`
+- Last weight: `/workspace/brand-new-yolo/runs/detect/runs/e0/p3ts_stage1_singlecls_yolo11n_640_s42_e30p10m30/weights/last.pt`
 - Eval checkpoint: `last`
-- Fixed epochs: `True`
-- Precision: `0.5053514288288228`
-- Recall: `0.5352247862211477`
-- mAP50: `0.4702203540787192`
-- mAP50-95: `0.20779397413804662`
+- Fixed epochs: `False`
+- Precision: `0.8088763796771667`
+- Recall: `0.7276494522491271`
+- mAP50: `0.8157740777927364`
+- mAP50-95: `0.3793428721567066`
