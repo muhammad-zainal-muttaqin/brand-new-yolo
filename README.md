@@ -15,8 +15,8 @@ Repositori ini memuat eksekusi **E0 Baseline Experimental Protocol** untuk task 
 Urutan biologis yang dipakai konsisten di repo ini adalah: **`B1 -> B2 -> B3 -> B4` = paling matang ke paling belum matang**.
 
 ## Orchestrator Status
-- Status orchestrator: `failed`
-- Error: `TypeError: 'str' object is not callable`
+- Status orchestrator: `running`
+- Started UTC: `2026-04-01T17:17:59Z`
 
 ## Phase 0 — Validation & Calibration
 
