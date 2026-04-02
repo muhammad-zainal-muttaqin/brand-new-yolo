@@ -437,7 +437,69 @@ python scripts/generate_e0_research_progress_charts.py
 
 ---
 
-## 11. Status sinkronisasi otomatis
+## 11. Konvensi penulisan README.md
+
+Ketika menulis ulang atau memperbarui `README.md`, ikuti konvensi berikut. Format acuan adalah `README-Old.md` — struktur dan cara penjelasannya dipakai sebagai template.
+
+### 11.1 Struktur dokumen (urutan wajib)
+
+1. `# Brand New YOLO — E0 End-to-End Report` — judul tunggal, level 1
+2. `## Overview` — canonical protocol source + Class Semantics table 3 kolom
+3. `## Executive Summary` — tabel ringkasan + gambar progress map
+4. Collapsible ToC (lihat §11.2)
+5. `## Phase 0` ... `## Phase 3` — masing-masing diawali `---`
+6. `## Appendix` — diawali `---`
+
+### 11.2 Table of Contents
+
+Pakai blockquote + heading untuk header agar terlihat saat scroll cepat:
+
+```markdown
+> ## 📋 Table of Contents — Expand Here 👇
+
+<details>
+<summary><strong>📋 Klik untuk buka / tutup Table of Contents</strong></summary>
+
+- [link-link section...]
+
+</details>
+```
+
+### 11.3 Path file dan gambar
+
+- **Semua** path gambar pakai `outputs/phaseN/figures/...` — tidak ada path root `figures/`
+- **Semua** path file teks pakai `outputs/phaseN/filename`
+- Confusion matrices masuk subfolder: `outputs/phase3/figures/confusion/`
+
+### 11.4 Heading hierarchy
+
+- `#` hanya untuk judul dokumen (baris pertama)
+- `##` untuk section besar (Phase N, Appendix, Overview, Executive Summary)
+- `###` untuk subsection dalam phase
+- `####` untuk subsection dalam subsection
+- **Tidak boleh** ada `# Final Report`, `# Error Analysis`, dsb. di tengah dokumen
+
+### 11.5 Tampilan confusion matrix
+
+Tampilkan langsung sebagai tabel 2-kolom Markdown (val | test per model), **bukan** di dalam `<details>`:
+
+```markdown
+| Model — val | Model — test |
+|---|---|
+| ![...](path/cm_model_last_val.png) | ![...](path/cm_model_last_test.png) |
+```
+
+### 11.6 Phase 3 — konvensi konten khusus
+
+- Overview table wajib memuat: protocol source, training split, training mode (`val=False`, `patience=0`), primary checkpoint (`last.pt` saja), eval splits, eval confidence
+- Tabel metrics hanya `last.pt` (tidak ada `best.pt` karena protokol `val=False`)
+- Tambahkan catatan interpretasi: metrik `val` bersifat **in-sample** karena `train+val` dipakai saat training; metrik `test` yang relevan untuk generalisasi
+- Gap val→test wajib disebut dan dijelaskan wajar
+- Referensi two-stage tetap ada tapi diberi keterangan eksplisit "tidak dirun ulang"
+
+---
+
+## 12. Status sinkronisasi otomatis
 
 <!-- AUTOSTATUS:START -->
 - Canonical source synced: `E0.md` mengikuti flowchart YOLOBench.
