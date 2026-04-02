@@ -85,3 +85,4 @@ Untuk konteks keputusan, buka [outputs/phase3/final_report.md](../phase3/final_r
 - 2026-04-02T05:02:58Z | commit 7d7ebe5 | phase3: add p3tv_yolov8s_640_s42_e30nv
 - 2026-04-02T05:07:45Z | commit cba7e6e | phase3 canonical sync complete
 - 2026-04-02T05:07:45Z | PENDING SYNC | phase3 canonical sync complete | missing GITHUB_TOKEN
+- 2026-04-02T05:07:46Z | commit 54e6c35 | write final root README report
