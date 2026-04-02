@@ -24,6 +24,14 @@ METRICS = [
     ("recall", "Recall", "#DC2626"),
 ]
 
+PHASE3_NOTABLE = {
+    "p3os_yolo11m_640_s42_e60fix",
+    "p3os_yolov8s_640_s42_e60fix",
+}
+
+# Minimum improvement to show a label on a new-best point
+LABEL_THRESHOLD = 0.015
+
 
 def load_detection_progress() -> pd.DataFrame:
     df = pd.read_csv(LEDGER_PATH)
@@ -69,12 +77,24 @@ def draw_phase_bands(ax: plt.Axes, df: pd.DataFrame, y_top: float) -> None:
 
 def make_chart(df: pd.DataFrame, metric_key: str, metric_label: str, accent: str) -> None:
     series = df[metric_key].astype(float)
-    running_best = series.cummax()
-    is_new_best = series.eq(running_best) & series.ne(running_best.shift(fill_value=-np.inf))
 
+    # running best ignores single-class runs so the line stays in 4-class range
+    is_singlecls = df["single_cls"].fillna(False).astype(bool)
+    series_4cls = series.where(~is_singlecls, other=np.nan)
+    running_best = series_4cls.cummax()
+
+    is_new_best = (
+        series_4cls.notna()
+        & series_4cls.eq(running_best)
+        & (running_best - running_best.shift(fill_value=0) > 0)
+    )
+    improvement = running_best - running_best.shift(fill_value=0)
+    is_labeled = is_new_best & (improvement >= LABEL_THRESHOLD)
+
+    # y range from full series so single-cls dot is visible
     ymin = float(series.min())
     ymax = float(series.max())
-    ypad = max((ymax - ymin) * 0.12, 0.01)
+    ypad = max((ymax - ymin) * 0.08, 0.01)
 
     fig, ax = plt.subplots(figsize=(15, 7.8), dpi=180)
     fig.patch.set_facecolor("white")
@@ -82,6 +102,7 @@ def make_chart(df: pd.DataFrame, metric_key: str, metric_label: str, accent: str
 
     draw_phase_bands(ax, df, ymax + ypad * 0.68)
 
+    # gray connecting line (all runs)
     ax.plot(
         df["exp_idx"],
         series,
@@ -91,6 +112,7 @@ def make_chart(df: pd.DataFrame, metric_key: str, metric_label: str, accent: str
         zorder=1,
     )
 
+    # running best step line (4-class only)
     ax.step(
         df["exp_idx"],
         running_best,
@@ -101,6 +123,7 @@ def make_chart(df: pd.DataFrame, metric_key: str, metric_label: str, accent: str
         zorder=2,
     )
 
+    # scatter dots by phase (all runs including single-cls; clipped by ylim)
     for phase, phase_df in df.groupby("phase", sort=False):
         ax.scatter(
             phase_df["exp_idx"],
@@ -110,8 +133,10 @@ def make_chart(df: pd.DataFrame, metric_key: str, metric_label: str, accent: str
             edgecolor="white",
             linewidth=0.9,
             zorder=3,
+            clip_on=True,
         )
 
+    # white-ring markers for all new-best 4-class points
     best_points = df[is_new_best]
     ax.scatter(
         best_points["exp_idx"],
@@ -123,7 +148,8 @@ def make_chart(df: pd.DataFrame, metric_key: str, metric_label: str, accent: str
         zorder=4,
     )
 
-    for _, row in best_points.iterrows():
+    # labels only for significant improvements
+    for _, row in df[is_labeled].iterrows():
         ax.text(
             row["exp_idx"],
             row[metric_key] + ypad * 0.1,
@@ -133,6 +159,49 @@ def make_chart(df: pd.DataFrame, metric_key: str, metric_label: str, accent: str
             fontsize=10,
             color=accent,
             fontweight="bold",
+        )
+        ax.text(
+            row["exp_idx"] + 0.3,
+            row[metric_key] - ypad * 0.08,
+            row["run_name"],
+            ha="left",
+            va="top",
+            fontsize=7.5,
+            color=accent,
+            style="italic",
+            rotation=35,
+            rotation_mode="anchor",
+        )
+
+    # Phase 3 notable: always labeled even if not a new best
+    phase3_label_df = df[df["run_name"].isin(PHASE3_NOTABLE) & ~is_labeled]
+    for _, row in phase3_label_df.iterrows():
+        ax.text(
+            row["exp_idx"] + 0.3,
+            row[metric_key] - ypad * 0.08,
+            row["run_name"],
+            ha="left",
+            va="top",
+            fontsize=7.5,
+            color=PHASE_COLORS["phase3"],
+            style="italic",
+            rotation=35,
+            rotation_mode="anchor",
+        )
+
+    # label single-cls runs with run_name (dot is visible in chart)
+    for _, row in df[is_singlecls].iterrows():
+        ax.text(
+            row["exp_idx"] + 0.3,
+            row[metric_key] - ypad * 0.08,
+            f"{row['run_name']} (1-cls)",
+            ha="left",
+            va="top",
+            fontsize=7.5,
+            color=PHASE_COLORS.get(row["phase"], "#94A3B8"),
+            style="italic",
+            rotation=35,
+            rotation_mode="anchor",
         )
 
     ax.set_xlim(0.5, df["exp_idx"].max() + 0.5)
