@@ -401,7 +401,45 @@ Urutan aksi setelah clone ulang atau audit cepat:
 5. buka [outputs/phase2/final_hparams.yaml](outputs/phase2/final_hparams.yaml)
 6. pakai [outputs/reports/reproducibility_and_termination.md](outputs/reports/reproducibility_and_termination.md) jika ingin mereproduksi atau melanjutkan dari mesin lain
 
-## 10. Status sinkronisasi otomatis
+## 10. Regenerasi figure dokumentasi
+
+### Research progress charts
+
+Script: [`scripts/generate_e0_research_progress_charts.py`](scripts/generate_e0_research_progress_charts.py)
+Output: `outputs/figures/e0_research_progress_*.png` (4 file: map50, map50_95, precision, recall)
+
+Jalankan ulang setelah ada run baru di ledger:
+
+```bash
+python scripts/generate_e0_research_progress_charts.py
+```
+
+**Parameter yang bisa diubah langsung di script:**
+
+| Konstanta | Default | Fungsi |
+|---|---|---|
+| `LABEL_THRESHOLD` | `0.015` | Minimum improvement mAP50 agar titik dapat label. Naikkan jika label masih terlalu padat. |
+| `PHASE3_NOTABLE` | `{p3os_yolo11m..., p3os_yolov8s...}` | Run Phase 3 yang selalu dilabeli meskipun bukan new-best. Tambah nama run baru jika ada kandidat Phase 3 tambahan. |
+
+**Perilaku single-class runs:**
+- Run dengan `single_cls=True` di ledger (misal Stage-1 detector) tetap muncul sebagai titik di chart
+- Tapi **running-best line** (garis biru) tidak naik ke nilai mereka — dihitung dari 4-class runs saja
+- Y-axis otomatis mencakup nilai single-cls agar titik terlihat
+
+**Troubleshooting:**
+- Label masih tumpang tindih → naikkan `LABEL_THRESHOLD` (misal ke `0.02`)
+- Run baru Phase 3 tidak terlabeli → tambahkan nama run ke `PHASE3_NOTABLE`
+- Chart tidak update → pastikan run ada di `outputs/reports/run_ledger.csv` dengan `status=completed`
+
+### Figures lain
+
+| Script | Output |
+|---|---|
+| `scripts/generate_doc_figures.py` | Semua figure per-fase (`outputs/phaseN/figures/`) |
+
+---
+
+## 11. Status sinkronisasi otomatis
 
 <!-- AUTOSTATUS:START -->
 - Canonical source synced: `E0.md` mengikuti flowchart YOLOBench.
