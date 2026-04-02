@@ -82,3 +82,4 @@ Untuk konteks keputusan, buka [outputs/phase3/final_report.md](../phase3/final_r
 - 2026-04-01T16:34:13Z | commit cd56a4d | phase3: add p3ts_stage2_cls_yolo11n-cls_224_s42_e30p10m30
 - 2026-04-01T17:27:29Z | commit 734a2ba | phase3 canonical sync complete
 - 2026-04-01T17:27:32Z | commit 1d149ab | write final root README report
+- 2026-04-02T05:02:58Z | commit 7d7ebe5 | phase3: add p3tv_yolov8s_640_s42_e30nv
