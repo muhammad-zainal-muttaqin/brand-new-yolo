@@ -337,17 +337,15 @@ Semua ini harus dibaca bersama [outputs/phase2/phase2_summary.md](outputs/phase2
 - [x] membaca [outputs/phase1/locked_setup.yaml](outputs/phase1/locked_setup.yaml) versi kontrak baru
 - [x] restore dataset aktif ke `/workspace/Dataset-Sawit-YOLO`
 - [x] benchmark one-stage `yolo11m.pt` dan `yolov8s.pt`
-- [x] training one-stage hanya pada `train`
-- [x] fixed `60 epoch` tanpa early stopping untuk kandidat utama
-- [x] evaluasi `last.pt` dan `best.pt` pada `val` dan `test`
-- [x] rebuild cabang two-stage dari nol
-- [x] GT-crop dataset dibangun ulang
-- [x] evaluasi two-stage GT-crop dan end-to-end
+- [x] training one-stage pada gabungan `train+val`
+- [x] `30 epoch`, `patience=0`, dan `val=False` saat training
+- [x] evaluasi `last.pt` pada `val` dan `test`
+- [x] cabang two-stage dikeluarkan dari kontrak aktif rerun final
 - [x] confusion matrix penuh 4 kelas digenerate
-- [x] threshold sweep `0.1–0.5` untuk kandidat one-stage
+- [x] confidence evaluasi dikunci tetap di `0.10`
 - [x] tracking error utama
 - [ ] deploy check ditandai **deferred**
-- [ ] final report dan final evaluation ditulis ulang
+- [ ] final report dan final evaluation diregenerasi setelah rerun
 
 ## 7. Policy otomatisasi
 
@@ -419,7 +417,7 @@ python scripts/generate_e0_research_progress_charts.py
 | Konstanta | Default | Fungsi |
 |---|---|---|
 | `LABEL_THRESHOLD` | `0.015` | Minimum improvement mAP50 agar titik dapat label. Naikkan jika label masih terlalu padat. |
-| `PHASE3_NOTABLE` | `{p3os_yolo11m..., p3os_yolov8s...}` | Run Phase 3 yang selalu dilabeli meskipun bukan new-best. Tambah nama run baru jika ada kandidat Phase 3 tambahan. |
+| `PHASE3_NOTABLE` | `{p3tv_yolo11m..., p3tv_yolov8s...}` | Run Phase 3 yang selalu dilabeli meskipun bukan new-best. Tambah nama run baru jika ada kandidat Phase 3 tambahan. |
 
 **Perilaku single-class runs:**
 - Run dengan `single_cls=True` di ledger (misal Stage-1 detector) tetap muncul sebagai titik di chart
@@ -443,8 +441,8 @@ python scripts/generate_e0_research_progress_charts.py
 
 <!-- AUTOSTATUS:START -->
 - Canonical source synced: `E0.md` mengikuti flowchart YOLOBench.
-- Phase 3 sekarang ditimpa sebagai benchmark otomatis multi-candidate dengan split adil (`train` -> `val` + `test`).
+- Phase 3 sekarang mengikuti protokol final dosen: train `train+val`, `val=False` saat fit, lalu evaluasi `last.pt` pada `val` dan `test`.
 - Kandidat utama one-stage yang dijalankan: `yolo11m.pt` dan `yolov8s.pt`.
-- Cabang two-stage dibangun ulang: single-class detector, GT-crop classifier, dan evaluasi end-to-end.
-- Artefak Phase 3 baru tersedia di `outputs/phase3/` dan detail per-branch ada di `outputs/phase3/detail/`.
+- Cabang two-stage tidak lagi termasuk kontrak aktif rerun final Phase 3.
+- Threshold evaluasi one-stage dikunci di `conf=0.10` tanpa threshold sweep tambahan.
 <!-- AUTOSTATUS:END -->

@@ -66,19 +66,20 @@ Urutannya adalah **`B1 -> B2 -> B3 -> B4` = paling matang ke paling belum matang
 
 ## 4. Data untuk Phase 3 aktif
 
-Kontrak Phase 3 yang aktif sekarang mengikuti split adil standar dan **tidak** lagi memakai `train+val`. File data aktif ada di [outputs/phase3/final_data.yaml](../phase3/final_data.yaml), yang menunjuk ke:
+Kontrak Phase 3 yang aktif sekarang mengikuti instruksi dosen untuk **train dengan `train+val`** dan **tanpa validasi saat training**. File data aktif ada di [outputs/phase3/final_data.yaml](../phase3/final_data.yaml), yang menunjuk ke:
 
 - `path: /workspace/Dataset-Sawit-YOLO`
-- `train: images/train`
+- `train: /workspace/brand-new-yolo/outputs/phase3/trainval.txt`
 - `val: images/val`
 - `test: images/test`
 
 Artinya:
 
-- training kandidat one-stage Phase 3 hanya memakai `train`
-- model yang sama dievaluasi pada `val` dan `test`
-- tujuan pelaporannya adalah melihat gap `val -> test` secara fair
-- cabang two-stage juga dibangun ulang dari dataset utama yang sama, tetapi GT-crop classifier memakai crop yang direbuild dari ground truth
+- training kandidat one-stage Phase 3 memakai gabungan `train` dan `val`
+- training dijalankan dengan `epochs=30`, `patience=0`, dan `val=False`
+- checkpoint pelaporan final hanya `last.pt`
+- metric akhir dihitung terpisah pada `val` dan `test`
+- cabang two-stage tidak lagi termasuk kontrak aktif rerun final
 
 ## 5. Source of truth per fase
 
@@ -120,13 +121,13 @@ Artinya:
 Kontrak aktif repo ini sekarang adalah:
 
 - kandidat utama one-stage Phase 3: `yolo11m.pt` dan `yolov8s.pt`
-- training one-stage: split `train` saja
+- training one-stage: gabungan `train+val`
 - evaluasi one-stage: `val` dan `test`
 - seed Phase 3 one-stage: `42`
-- epoch one-stage: `60`
-- early stopping one-stage: `disabled`
-- checkpoint yang dilaporkan: `last.pt` sebagai utama, `best.pt` sebagai pembanding
-- cabang two-stage: tetap aktif sebagai pembanding pendukung, dengan Stage-1 detector single-class, Stage-2 GT-crop classifier, dan evaluasi end-to-end
+- epoch one-stage: `30`
+- training mode one-stage: `val=False`, `patience=0`
+- checkpoint yang dilaporkan: `last.pt`
+- cabang two-stage: tidak lagi termasuk kontrak aktif rerun final
 
 Verifikasi kontrak aktif ada di:
 
@@ -175,18 +176,18 @@ python scripts/run_yolo_experiment.py \
   --model yolo11m.pt \
   --data /workspace/brand-new-yolo/outputs/phase3/final_data.yaml \
   --imgsz 640 \
-  --epochs 60 \
+  --epochs 30 \
   --batch 16 \
   --seed 42 \
   --project runs/e0 \
-  --name p3os_yolo11m_640_s42_e60fix \
+  --name p3tv_yolo11m_640_s42_e30nv \
   --split val \
   --device 0 \
   --workers 8 \
   --patience 0 \
   --min-epochs 0 \
   --eval-checkpoint last \
-  --fixed-epochs \
+  --train-no-val \
   --imbalance-strategy none \
   --ordinal-strategy standard \
   --pretrained \

@@ -421,11 +421,14 @@ Gap antar kelas — B1 jauh di atas, B4 jauh di bawah — bukan artefak seed ter
 | Parameter | Nilai |
 |---|---|
 | Protocol source | [E0_Protocol_Flowchart.html](https://github.com/muhammad-zainal-muttaqin/YOLOBench/blob/main/E0_Protocol_Flowchart.html) |
-| Training split | `train` only |
+| Training split | `train+val` |
 | Evaluation splits | `val` dan `test` |
-| Primary checkpoint | `last.pt` (dengan `best.pt` juga dievaluasi) |
+| Training mode | `epochs=30`, `patience=0`, `val=False` |
+| Primary checkpoint | `last.pt` |
 | One-stage candidates | `yolo11m.pt`, `yolov8s.pt` |
-| Two-stage branch | Stage-1 single-class detector + Stage-2 GT-crop classifier + evaluasi end-to-end |
+| Two-stage branch | tidak termasuk kontrak aktif rerun final |
+
+> Catatan protokol: kontrak aktif Phase 3 sekarang mengikuti instruksi dosen untuk **train pada `train+val` tanpa validasi saat training**, lalu mengevaluasi `last.pt` secara terpisah pada `val` dan `test`. Tabel angka di bawah section ini masih merekam benchmark Phase 3 sebelumnya dan harus dibaca sebagai **arsip historis** sampai rerun baru selesai.
 
 ### 1. One-Stage Results
 

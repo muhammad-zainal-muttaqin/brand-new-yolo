@@ -17,7 +17,8 @@ from ultralytics.utils.loss import v8DetectionLoss
 LEDGER_COLUMNS = [
     'timestamp_utc','phase','run_name','model','imgsz','epochs','batch','seed','split',
     'data','save_dir','best_weight','last_weight','precision','recall','map50','map50_95',
-    'top1_acc','top5_acc','task','single_cls','eval_checkpoint','fixed_epochs','status'
+    'top1_acc','top5_acc','task','single_cls','eval_checkpoint','fixed_epochs','train_no_val',
+    'train_entry','eval_conf','status'
 ]
 IMAGE_SUFFIXES = {'.jpg', '.jpeg', '.png', '.bmp', '.webp'}
 
@@ -174,6 +175,9 @@ def write_latest_status(row: dict, save_dir: Path, status_path: Path) -> None:
         f"- Last weight: `{row['last_weight']}`",
         f"- Eval checkpoint: `{row.get('eval_checkpoint', 'best')}`",
         f"- Fixed epochs: `{row.get('fixed_epochs', False)}`",
+        f"- Train no val: `{row.get('train_no_val', False)}`",
+        f"- Train entry: `{row.get('train_entry', '')}`",
+        f"- Eval conf: `{row.get('eval_conf', '')}`",
         f"- Precision: `{row['precision']}`",
         f"- Recall: `{row['recall']}`",
         f"- mAP50: `{row['map50']}`",
@@ -321,6 +325,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument('--conf', type=float, default=None)
     p.add_argument('--eval-checkpoint', choices=['best', 'last'], default='best')
     p.add_argument('--fixed-epochs', action='store_true')
+    p.add_argument('--train-no-val', action='store_true')
     p.add_argument('--imbalance-strategy', choices=['none', 'class_weighted', 'focal'], default='none')
     p.add_argument('--ordinal-strategy', choices=['standard', 'ordinal_weighted', 'coral'], default='standard')
     p.add_argument('--focal-gamma', type=float, default=1.5)
@@ -370,6 +375,8 @@ def main() -> None:
     if args.fixed_epochs:
         # Disable early stopping by making patience unreachable within the scheduled epoch budget.
         train_kwargs['patience'] = max(args.patience, args.epochs + 1)
+    if args.train_no_val:
+        train_kwargs['val'] = False
     optional_train_args = {
         'optimizer': args.optimizer,
         'lr0': args.lr0,
@@ -393,6 +400,9 @@ def main() -> None:
     save_dir = Path(train_results.save_dir)
     best_weight = save_dir / 'weights' / 'best.pt'
     last_weight = save_dir / 'weights' / 'last.pt'
+    if args.train_no_val and best_weight.exists():
+        # In no-validation runs, best.pt is not a meaningful selection artifact.
+        best_weight.unlink()
 
     eval_weight = best_weight if args.eval_checkpoint == 'best' else last_weight
     if not eval_weight.exists():
@@ -412,6 +422,11 @@ def main() -> None:
     if args.conf is not None:
         val_kwargs['conf'] = args.conf
     metrics = best_model.val(**val_kwargs)
+
+    train_entry = ''
+    data_path = Path(args.data)
+    if data_path.exists() and data_path.suffix.lower() in {'.yaml', '.yml'}:
+        train_entry = str(load_yaml(args.data).get('train', ''))
 
     top1_acc = None
     top5_acc = None
@@ -453,6 +468,9 @@ def main() -> None:
         'metric_schema_note': metric_schema_note,
         'eval_checkpoint': args.eval_checkpoint,
         'fixed_epochs': args.fixed_epochs,
+        'train_no_val': args.train_no_val,
+        'train_entry': train_entry,
+        'eval_conf': args.conf,
         'status': 'completed',
         'fraction': args.fraction,
         'single_cls': args.single_cls,

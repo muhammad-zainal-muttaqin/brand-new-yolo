@@ -35,10 +35,11 @@ PHASE1B_SEEDS = [1, 2]
 PHASE2_SEEDS = [1, 2]
 PHASE2_CONFIRM_SEED = 3
 PHASE3_FINAL_SEED = 42
-PHASE3_FINAL_EPOCHS = 60
+PHASE3_FINAL_EPOCHS = 30
 PHASE3_ONE_STAGE_CANDIDATES = ['yolo11m.pt', 'yolov8s.pt']
 PHASE3_DATASET_HF_URL = 'https://huggingface.co/datasets/ULM-DS-Lab/Dataset-Sawit-YOLO'
 PHASE3_DATASET_ROOT = Path('/workspace/Dataset-Sawit-YOLO')
+PHASE3_ONE_STAGE_EVAL_CONF = 0.10
 PHASE3_STAGE1_MODEL = 'yolo11n.pt'
 PHASE3_STAGE1_EPOCHS = 30
 PHASE3_STAGE1_PATIENCE = 10
@@ -116,6 +117,7 @@ class RunSpec:
     project: str = 'runs/e0'
     optimizer: str | None = 'AdamW'
     lr0: float | None = None
+    conf: float | None = None
     imbalance_strategy: str = 'none'
     ordinal_strategy: str = 'standard'
     focal_gamma: float = 1.5
@@ -123,6 +125,7 @@ class RunSpec:
     single_cls: bool = False
     eval_checkpoint: str = 'best'
     fixed_epochs: bool = False
+    train_no_val: bool = False
 
 
 def utc_now() -> str:
@@ -551,10 +554,14 @@ def build_command(spec: RunSpec) -> list[str]:
         cmd.append('--single-cls')
     if spec.fixed_epochs:
         cmd.append('--fixed-epochs')
+    if spec.train_no_val:
+        cmd.append('--train-no-val')
     if spec.optimizer:
         cmd += ['--optimizer', spec.optimizer]
     if spec.lr0 is not None:
         cmd += ['--lr0', str(spec.lr0)]
+    if spec.conf is not None:
+        cmd += ['--conf', str(spec.conf)]
     for key, value in AUG_PROFILES[spec.aug_profile].items():
         cmd += ['--' + key.replace('_', '-'), str(value)]
     return cmd
@@ -685,53 +692,56 @@ def build_phase3_lock_contract(lock: dict[str, Any]) -> dict[str, Any]:
             'aug_profile': 'medium',
             'imgsz': 640,
         }
-    phase3_locked = lock.get('phase3_locked', {})
-    phase3_locked.setdefault('contract_version', 2)
-    phase3_locked.setdefault('selection_policy', 'multi_candidate_final_benchmark')
-    phase3_locked.setdefault('candidates', PHASE3_ONE_STAGE_CANDIDATES.copy())
-    phase3_locked.setdefault('one_stage_config', {
-        'lr0': float(base_cfg.get('lr0', 0.001)),
-        'batch': int(base_cfg.get('batch', 16)),
-        'imbalance_strategy': base_cfg.get('imbalance_strategy', 'none'),
-        'ordinal_strategy': base_cfg.get('ordinal_strategy', 'standard'),
-        'aug_profile': base_cfg.get('aug_profile', 'medium'),
-        'imgsz': int(base_cfg.get('imgsz', 640)),
-        'epochs': PHASE3_FINAL_EPOCHS,
-        'seed': PHASE3_FINAL_SEED,
-        'primary_checkpoint': 'last',
-        'secondary_checkpoint': 'best',
-        'fixed_epochs': True,
-        'eval_splits': ['val', 'test'],
-        'train_split': 'train',
-    })
-    phase3_locked.setdefault('two_stage_config', {
-        'enabled': True,
-        'seed': PHASE3_FINAL_SEED,
-        'stage1': {
-            'model': PHASE3_STAGE1_MODEL,
-            'single_cls': True,
-            'imgsz': 640,
-            'epochs': PHASE3_STAGE1_EPOCHS,
-            'batch': 16,
-            'patience': PHASE3_STAGE1_PATIENCE,
-            'min_epochs': PHASE3_STAGE1_MIN_EPOCHS,
-            'lr0': 0.001,
-            'aug_profile': 'medium',
-        },
-        'stage2': {
-            'model': PHASE3_STAGE2_MODEL,
-            'imgsz': PHASE3_STAGE2_IMGSZ,
-            'epochs': PHASE3_STAGE2_EPOCHS,
-            'batch': PHASE3_STAGE2_BATCH,
-            'patience': PHASE3_STAGE2_PATIENCE,
-            'min_epochs': PHASE3_STAGE2_MIN_EPOCHS,
+    phase3_locked = {
+        'contract_version': 3,
+        'selection_policy': 'multi_candidate_trainval_postfit_eval',
+        'candidates': PHASE3_ONE_STAGE_CANDIDATES.copy(),
+        'one_stage_config': {
+            'lr0': float(base_cfg.get('lr0', 0.001)),
+            'batch': int(base_cfg.get('batch', 16)),
+            'imbalance_strategy': base_cfg.get('imbalance_strategy', 'none'),
+            'ordinal_strategy': base_cfg.get('ordinal_strategy', 'standard'),
+            'aug_profile': base_cfg.get('aug_profile', 'medium'),
+            'imgsz': int(base_cfg.get('imgsz', 640)),
+            'epochs': PHASE3_FINAL_EPOCHS,
+            'seed': PHASE3_FINAL_SEED,
+            'primary_checkpoint': 'last',
+            'secondary_checkpoint': None,
+            'fixed_epochs': False,
             'eval_splits': ['val', 'test'],
+            'train_split': 'trainval',
+            'train_no_val': True,
+            'eval_conf': PHASE3_ONE_STAGE_EVAL_CONF,
         },
-        'end_to_end': {
-            'detector_conf': PHASE3_TWO_STAGE_DETECTOR_CONF,
-            'eval_splits': ['val', 'test'],
+        'two_stage_config': {
+            'enabled': False,
+            'seed': PHASE3_FINAL_SEED,
+            'stage1': {
+                'model': PHASE3_STAGE1_MODEL,
+                'single_cls': True,
+                'imgsz': 640,
+                'epochs': PHASE3_STAGE1_EPOCHS,
+                'batch': 16,
+                'patience': PHASE3_STAGE1_PATIENCE,
+                'min_epochs': PHASE3_STAGE1_MIN_EPOCHS,
+                'lr0': 0.001,
+                'aug_profile': 'medium',
+            },
+            'stage2': {
+                'model': PHASE3_STAGE2_MODEL,
+                'imgsz': PHASE3_STAGE2_IMGSZ,
+                'epochs': PHASE3_STAGE2_EPOCHS,
+                'batch': PHASE3_STAGE2_BATCH,
+                'patience': PHASE3_STAGE2_PATIENCE,
+                'min_epochs': PHASE3_STAGE2_MIN_EPOCHS,
+                'eval_splits': ['val', 'test'],
+            },
+            'end_to_end': {
+                'detector_conf': PHASE3_TWO_STAGE_DETECTOR_CONF,
+                'eval_splits': ['val', 'test'],
+            },
         },
-    })
+    }
     lock['phase3_locked'] = phase3_locked
     lock.pop('final_model', None)
     lock.pop('final_config', None)
@@ -751,17 +761,23 @@ def validate_phase3_lock(lock: dict[str, Any]) -> None:
     validate_phase2_lock(lock)
     require_lock_keys(lock, ['phase3_locked'], 'phase3 lock validation')
     phase3_locked = lock['phase3_locked']
+    if int(phase3_locked.get('contract_version', 0)) != 3:
+        raise RuntimeError('phase3 lock validation: unsupported contract version')
     candidates = phase3_locked.get('candidates') or []
     if candidates != PHASE3_ONE_STAGE_CANDIDATES:
         raise RuntimeError('phase3 lock validation: unexpected candidate list')
     if any(model not in PHASE1B_MODELS for model in candidates):
         raise RuntimeError('phase3 lock validation: candidate outside canonical phase1 roster')
     one_stage = phase3_locked.get('one_stage_config') or {}
-    for key in ['lr0', 'batch', 'imbalance_strategy', 'ordinal_strategy', 'aug_profile', 'imgsz', 'epochs', 'seed']:
+    for key in ['lr0', 'batch', 'imbalance_strategy', 'ordinal_strategy', 'aug_profile', 'imgsz', 'epochs', 'seed', 'train_split', 'train_no_val', 'eval_conf']:
         if key not in one_stage:
             raise RuntimeError(f'phase3 lock validation: one_stage_config missing key {key}')
     if int(one_stage['imgsz']) != 640:
         raise RuntimeError('phase3 lock validation: imgsz changed after lock')
+    if one_stage['train_split'] != 'trainval':
+        raise RuntimeError('phase3 lock validation: expected train_split=trainval')
+    if not bool(one_stage['train_no_val']):
+        raise RuntimeError('phase3 lock validation: expected train_no_val=true')
 
 
 def update_guide_status(lines: list[str]) -> None:
@@ -1275,15 +1291,26 @@ def names_from_data_yaml(data_yaml: str) -> list[str]:
     return list(names)
 
 
+def create_phase3_trainval_manifest(data_yaml: str) -> Path:
+    train_images = iter_split_images(data_yaml, 'train')
+    val_images = iter_split_images(data_yaml, 'val')
+    manifest_path = phase3_path('trainval.txt')
+    entries = [str(path.resolve()) for path in train_images]
+    entries.extend(str(path.resolve()) for path in val_images)
+    manifest_path.write_text('\n'.join(entries) + '\n', encoding='utf-8')
+    return manifest_path
+
+
 def create_phase3_data_yaml() -> Path:
     ensure_phase3_dataset()
     cfg, yaml_path = load_data_cfg('Dataset-YOLO/data.yaml')
     root = dataset_root(cfg, yaml_path)
+    train_manifest = create_phase3_trainval_manifest('Dataset-YOLO/data.yaml')
     outdir = ROOT / 'outputs/phase3'
     outdir.mkdir(parents=True, exist_ok=True)
     final_cfg = {
         'path': str(root),
-        'train': 'images/train',
+        'train': str(train_manifest),
         'val': 'images/val',
         'test': 'images/test',
         'nc': int(cfg['nc']),
@@ -1918,10 +1945,10 @@ def write_phase3_reports(metric_rows: list[dict[str, Any]], error_rows: list[dic
         '# Final Report - Phase 3 Multi-Candidate Benchmark',
         '',
         f'- Canonical protocol source: `{CANONICAL_SOURCE}`',
-        '- Phase 3 ini menimpa definisi lama dan sekarang mengikuti split adil: training hanya `train`, evaluasi pada `val` dan `test`.',
+        '- Phase 3 aktif mengikuti protokol final dosen: training memakai gabungan `train+val`, tanpa validasi saat training (`val=False`), lalu evaluasi post-fit pada `val` dan `test`.',
         '- Kandidat utama one-stage: `yolo11m.pt` dan `yolov8s.pt`.',
-        '- Checkpoint utama untuk pelaporan final: `last.pt`; `best.pt` tetap ikut dievaluasi.',
-        '- Cabang two-stage di-run ulang sebagai pembanding pendukung: Stage-1 single-class detector, Stage-2 GT-crop classifier, dan evaluasi end-to-end.',
+        '- Checkpoint utama untuk pelaporan final: `last.pt`.',
+        f'- Confidence evaluasi dikunci tetap di `{PHASE3_ONE_STAGE_EVAL_CONF:.2f}`.',
         '',
         '## One-Stage Test Set — `last.pt`',
         '',
@@ -1961,14 +1988,13 @@ def write_phase3_reports(metric_rows: list[dict[str, Any]], error_rows: list[dic
     eval_lines = [
         '# Final Evaluation — Phase 3',
         '',
-        'Dokumen ini memuat ringkasan evaluasi teknis hasil otomasi ulang Phase 3 sesuai `GUIDE.md`: train-only benchmark, dual-candidate one-stage, dan cabang two-stage yang dibangun ulang.',
+        'Dokumen ini memuat ringkasan evaluasi teknis hasil rerun Phase 3 dengan protokol final dosen: train `train+val`, tanpa validasi saat training, lalu evaluasi `last.pt` pada `val` dan `test`.',
         '',
         '## Source of truth',
         '',
         '- `outputs/phase3/final_metrics.csv`',
         '- `outputs/phase3/per_class_metrics.csv`',
         '- `outputs/phase3/confusion_matrix.csv`',
-        '- `outputs/phase3/threshold_sweep.csv`',
         '- `outputs/phase3/error_stratification.csv`',
         '',
         '## Kandidat One-Stage',
@@ -2031,7 +2057,7 @@ def phase3() -> None:
 
     for model_name in phase3_locked['candidates']:
         candidate = model_stem(model_name)
-        run_name = f'p3os_{candidate}_640_s{one_stage_cfg["seed"]}_e{one_stage_cfg["epochs"]}fix'
+        run_name = f'p3tv_{candidate}_640_s{one_stage_cfg["seed"]}_e{one_stage_cfg["epochs"]}nv'
         spec = RunSpec(
             phase='phase3',
             name=run_name,
@@ -2045,27 +2071,25 @@ def phase3() -> None:
             min_epochs=0,
             data=str(data_yaml),
             lr0=float(one_stage_cfg['lr0']),
+            conf=float(one_stage_cfg.get('eval_conf', PHASE3_ONE_STAGE_EVAL_CONF)),
             optimizer='AdamW',
             imbalance_strategy=one_stage_cfg['imbalance_strategy'],
             ordinal_strategy=one_stage_cfg['ordinal_strategy'],
             aug_profile=one_stage_cfg['aug_profile'],
             eval_checkpoint='last',
             fixed_epochs=bool(one_stage_cfg['fixed_epochs']),
+            train_no_val=bool(one_stage_cfg.get('train_no_val')),
         )
         summary = run_experiment(spec)
-        tracked_weights.extend([summary.get('best_weight', ''), summary.get('last_weight', '')])
+        tracked_weights.extend([summary.get('last_weight', '')])
         detail_dir = phase3_path('detail', 'one_stage', candidate)
         detail_dir.mkdir(parents=True, exist_ok=True)
 
-        for checkpoint_name in ['last', 'best']:
+        for checkpoint_name in ['last']:
             weight_path = summary.get(f'{checkpoint_name}_weight')
             if not weight_path:
                 continue
-            sweep_rows, best_conf = threshold_sweep(weight_path, str(data_yaml), int(one_stage_cfg['imgsz']), int(one_stage_cfg['batch']), '0', split='val')
-            for row in sweep_rows:
-                row.update({'branch': 'one_stage', 'candidate': candidate, 'checkpoint': checkpoint_name, 'run_name': run_name})
-            threshold_rows.extend(sweep_rows)
-            write_csv(detail_dir / f'{checkpoint_name}_threshold_sweep.csv', sweep_rows)
+            eval_conf = float(one_stage_cfg.get('eval_conf', PHASE3_ONE_STAGE_EVAL_CONF))
             for split in one_stage_cfg['eval_splits']:
                 snapshot = evaluate_one_stage_checkpoint(
                     run_name=run_name,
@@ -2077,7 +2101,7 @@ def phase3() -> None:
                     imgsz=int(one_stage_cfg['imgsz']),
                     batch=int(one_stage_cfg['batch']),
                     device='0',
-                    conf=best_conf,
+                    conf=eval_conf,
                 )
                 write_json(detail_dir / f'{checkpoint_name}_{split}_eval.json', snapshot)
                 metric_rows.append(snapshot_metric_row(snapshot))
@@ -2225,7 +2249,11 @@ def phase3() -> None:
     write_csv(phase3_path('final_metrics.csv'), metric_rows)
     write_csv(phase3_path('per_class_metrics.csv'), per_class_rows)
     write_csv(phase3_path('confusion_matrix.csv'), confusion_rows)
-    write_csv(phase3_path('threshold_sweep.csv'), threshold_rows)
+    write_csv(
+        phase3_path('threshold_sweep.csv'),
+        threshold_rows,
+        fieldnames=['split', 'conf', 'precision', 'recall', 'map50', 'map50_95', 'confusion_b2_b3', 'b4_recall', 'branch', 'candidate', 'checkpoint', 'run_name'],
+    )
     write_csv(phase3_path('error_stratification.csv'), error_rows)
 
     deploy_lines = ['# Deploy Check', '']
@@ -2247,10 +2275,10 @@ def phase3() -> None:
 
     update_guide_status([
         '- Canonical source synced: `E0.md` mengikuti flowchart YOLOBench.',
-        '- Phase 3 sekarang ditimpa sebagai benchmark otomatis multi-candidate dengan split adil (`train` -> `val` + `test`).',
+        '- Phase 3 sekarang mengikuti protokol final dosen: train `train+val`, `val=False` saat fit, lalu evaluasi `last.pt` pada `val` dan `test`.',
         '- Kandidat utama one-stage yang dijalankan: `yolo11m.pt` dan `yolov8s.pt`.',
-        '- Cabang two-stage dibangun ulang: single-class detector, GT-crop classifier, dan evaluasi end-to-end.',
-        '- Artefak Phase 3 baru tersedia di `outputs/phase3/` dan detail per-branch ada di `outputs/phase3/detail/`.',
+        '- Cabang two-stage tidak lagi termasuk kontrak aktif rerun final Phase 3.',
+        '- Threshold evaluasi one-stage dikunci di `conf=0.10` tanpa threshold sweep tambahan.',
     ])
     checkpoint('phase3 canonical sync complete')
 

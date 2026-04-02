@@ -25,8 +25,8 @@ METRICS = [
 ]
 
 PHASE3_NOTABLE = {
-    "p3os_yolo11m_640_s42_e60fix",
-    "p3os_yolov8s_640_s42_e60fix",
+    "p3tv_yolo11m_640_s42_e30nv",
+    "p3tv_yolov8s_640_s42_e30nv",
 }
 
 # Minimum improvement to show a label on a new-best point

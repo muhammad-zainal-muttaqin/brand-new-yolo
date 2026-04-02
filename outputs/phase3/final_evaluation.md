@@ -1,5 +1,7 @@
 # Final Evaluation — Phase 3
 
+> Status: file ini masih berisi ringkasan evaluasi Phase 3 lama. Protokol aktif sekarang adalah **train `train+val`, `val=False`, lalu evaluasi `last.pt` pada `val` dan `test`**. Metrik di bawah adalah **arsip historis** sampai rerun baru dijalankan.
+
 Dokumen ini memuat ringkasan evaluasi teknis hasil otomasi ulang Phase 3 sesuai `GUIDE.md`: train-only benchmark, dual-candidate one-stage, dan cabang two-stage yang dibangun ulang.
 
 ## Source of truth

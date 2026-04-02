@@ -47,8 +47,8 @@ phase2_locked:
     min_epochs: 30
     imgsz: 640
 phase3_locked:
-  contract_version: 2
-  selection_policy: multi_candidate_final_benchmark
+  contract_version: 3
+  selection_policy: multi_candidate_trainval_postfit_eval
   candidates:
   - yolo11m.pt
   - yolov8s.pt
@@ -59,17 +59,19 @@ phase3_locked:
     ordinal_strategy: standard
     aug_profile: medium
     imgsz: 640
-    epochs: 60
+    epochs: 30
     seed: 42
     primary_checkpoint: last
-    secondary_checkpoint: best
-    fixed_epochs: true
+    secondary_checkpoint: null
+    fixed_epochs: false
     eval_splits:
     - val
     - test
-    train_split: train
+    train_split: trainval
+    train_no_val: true
+    eval_conf: 0.1
   two_stage_config:
-    enabled: true
+    enabled: false
     seed: 42
     stage1:
       model: yolo11n.pt

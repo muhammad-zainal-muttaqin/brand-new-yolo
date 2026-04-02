@@ -1,24 +1,24 @@
 # Latest Execution Status
 
-- Timestamp UTC: `2026-04-01T16:34:05.825696+00:00`
+- Timestamp UTC: `2026-04-02T05:02:54.835542+00:00`
 - Phase: `phase3`
-- Run name: `p3ts_stage2_cls_yolo11n-cls_224_s42_e30p10m30`
-- Model: `yolo11n-cls.pt`
-- Image size: `224`
+- Run name: `p3tv_yolov8s_640_s42_e30nv`
+- Model: `yolov8s.pt`
+- Image size: `640`
 - Epochs: `30`
-- Batch: `128`
+- Batch: `16`
 - Seed: `42`
 - Eval split: `val`
 - Status: **completed**
-- Save dir: `/workspace/brand-new-yolo/runs/classify/runs/e0/p3ts_stage2_cls_yolo11n-cls_224_s42_e30p10m30`
-- Best weight: `/workspace/brand-new-yolo/runs/classify/runs/e0/p3ts_stage2_cls_yolo11n-cls_224_s42_e30p10m30/weights/best.pt`
-- Last weight: `/workspace/brand-new-yolo/runs/classify/runs/e0/p3ts_stage2_cls_yolo11n-cls_224_s42_e30p10m30/weights/last.pt`
+- Save dir: `/workspace/brand-new-yolo/runs/detect/runs/e0/p3tv_yolov8s_640_s42_e30nv`
+- Best weight: ``
+- Last weight: `/workspace/brand-new-yolo/runs/detect/runs/e0/p3tv_yolov8s_640_s42_e30nv/weights/last.pt`
 - Eval checkpoint: `last`
 - Fixed epochs: `False`
-- Precision: `0.6338837146759033`
-- Recall: `1.0`
-- mAP50: `0.6338837146759033`
-- mAP50-95: `1.0`
-- Top1 acc: `0.6338837146759033`
-- Top5 acc: `1.0`
-- Metric note: `classification task: precision/top1 and recall/top5 are aliases for compatibility; mAP fields are not detection mAP`
+- Train no val: `True`
+- Train entry: `/workspace/brand-new-yolo/outputs/phase3/trainval.txt`
+- Eval conf: `0.1`
+- Precision: `0.6220187776545757`
+- Recall: `0.690410853893451`
+- mAP50: `0.6649580634673884`
+- mAP50-95: `0.38029777975340845`

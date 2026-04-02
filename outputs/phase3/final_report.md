@@ -1,5 +1,7 @@
 # Final Report - Phase 3 Multi-Candidate Benchmark
 
+> Status: file ini masih berisi hasil benchmark Phase 3 sebelumnya. Kontrak aktif sekarang sudah berubah ke protokol **train `train+val`, `val=False`, lalu evaluasi `last.pt` pada `val` dan `test`**. Angka di bawah harus dibaca sebagai **arsip historis** sampai rerun baru selesai.
+
 - Canonical protocol source: `https://github.com/muhammad-zainal-muttaqin/YOLOBench/blob/main/E0_Protocol_Flowchart.html`
 - Phase 3 ini menimpa definisi lama dan sekarang mengikuti split adil: training hanya `train`, evaluasi pada `val` dan `test`.
 - Kandidat utama one-stage: `yolo11m.pt` dan `yolov8s.pt`.

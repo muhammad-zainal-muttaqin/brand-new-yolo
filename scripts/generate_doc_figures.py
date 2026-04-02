@@ -935,6 +935,9 @@ def f19_checkpoint_comparison() -> None:
     if df.empty:
         print("  [SKIP] no one-stage rows for checkpoint comparison")
         return
+    if "best" not in set(df["checkpoint"].dropna().astype(str)):
+        print("  [SKIP] checkpoint comparison requires both best and last rows")
+        return
 
     candidates = _ordered_candidates(df["candidate"].dropna().unique().tolist())
     split_order = ["val", "test"]
