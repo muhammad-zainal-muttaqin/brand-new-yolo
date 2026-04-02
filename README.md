@@ -474,6 +474,18 @@ Gap antar kelas — B1 jauh di atas, B4 jauh di bawah — bukan artefak seed ter
 
 *Sweep confidence threshold 0.1–0.9; threshold default 0.25 memberikan trade-off precision/recall yang paling seimbang.*
 
+**Threshold sweep — yolo11m, last, val** (sumber: [threshold_sweep.csv](outputs/phase3/threshold_sweep.csv)):
+
+| conf | Precision | Recall | mAP50 | B4 Recall |
+|---:|---:|---:|---:|---:|
+| **0.1** | 0.501 | 0.563 | 0.500 | 0.383 |
+| **0.2** | 0.496 | **0.577** | 0.495 | **0.404** |
+| 0.3 | 0.542 | 0.513 | 0.491 | 0.318 |
+| 0.4 | 0.591 | 0.429 | 0.481 | 0.222 |
+| 0.5 | 0.640 | 0.354 | 0.475 | 0.150 |
+
+> **Operating point:** `conf=0.2` memaksimalkan B4 recall (0.404) dan overall recall (0.577) dengan mAP50 yang hampir sama dengan default. `conf=0.1` memberikan hasil serupa. Threshold default YOLO (0.25) adalah trade-off masuk akal, tapi untuk aplikasi yang memprioritaskan coverage B4, turunkan ke **`conf=0.1–0.2`**.
+
 ![Confusion overview 4 kelas](outputs/phase3/figures/p3_confusion_overview.png)
 
 *Konfusi terbesar terjadi pada pasangan B2↔B3 dan B3↔B4 — sesuai kedekatan biologis tahap kematangan adjacent.*
@@ -499,16 +511,27 @@ Gap antar kelas — B1 jauh di atas, B4 jauh di bawah — bukan artefak seed ter
 
 ![Confusion matrix — yolo11m, last checkpoint, test set (4-class)](outputs/phase3/figures/confusion/cm_one_stage_yolo11m_last_test.png)
 
-#### Per-Class AP50 — yolo11m, last, test (model final)
+#### Per-Class AP50 — yolo11m, test (last vs best)
 
-| Kelas | AP50 | Catatan |
-|---|---:|---|
-| B1 | **0.8050** | Tertinggi — buah matang, warna merah, distinctive |
-| B2 | **0.4042** | Transisi, sering confused dengan B3 |
-| B3 | **0.5716** | Dominan di dataset (46%), performa medium |
-| B4 | **0.3753** | Terendah — bbox terkecil, paling teroklusi |
+| Kelas | AP50 `last` | AP50 `best` | Delta | Catatan |
+|---|---:|---:|---:|---|
+| B1 | 0.7858 | **0.8040** | +0.018 | Tertinggi — warna merah terang, distinctive |
+| B2 | 0.3471 | **0.3584** | +0.011 | Transisi, sering confused dengan B3 |
+| B3 | 0.5032 | **0.5060** | +0.003 | Dominan di dataset (46%), gain minimal |
+| B4 | 0.3000 | **0.3390** | +0.039 | Terendah — gain terbesar di `best`, tapi masih jauh |
 
-> Nilai dari confirmation run Phase 2 (val) sebagai proxy; nilai test final ada di [per_class_metrics.csv](outputs/phase3/per_class_metrics.csv).
+`best` unggul di semua kelas; gain terbesar di B4 (+0.039) yang memang paling volatile antar checkpoint. B3 hampir identik — konsisten di kedua checkpoint. Sumber: [per_class_metrics.csv](outputs/phase3/per_class_metrics.csv).
+
+#### Per-Class Full Metrics — yolo11m, last, test
+
+| Kelas | Precision | Recall | mAP50 | mAP50-95 |
+|---|---:|---:|---:|---:|
+| B1 | 0.670 | 0.693 | **0.786** | 0.467 |
+| B2 | 0.354 | 0.474 | 0.347 | 0.170 |
+| B3 | 0.380 | **0.756** | 0.503 | 0.233 |
+| B4 | 0.244 | 0.497 | 0.300 | 0.119 |
+
+Pola asimetri yang menonjol: B3 recall jauh lebih tinggi dari precision (0.756 vs 0.380) — model terlalu agresif mendeteksi B3 sehingga banyak false positive. B4 precision (0.244) paling rendah; setiap kali model mendeteksi B4, lebih sering salah daripada benar.
 
 #### Two-Stage End-to-End
 
