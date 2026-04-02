@@ -1,62 +1,22 @@
 # Error Analysis
 
-- `one_stage` / `yolo11m` / `best` / `test`
+- `one_stage` / `yolo11m` / `last` / `test`
   - false_positive: `20` image
   - B2_B3_confusion: `15` image
   - B3_B4_confusion: `14` image
-  - B4_missed: `9` image
-- `one_stage` / `yolo11m` / `best` / `val`
-  - false_positive: `20` image
-  - B2_B3_confusion: `10` image
-  - B3_B4_confusion: `9` image
-  - B4_missed: `6` image
-- `one_stage` / `yolo11m` / `last` / `test`
-  - false_positive: `20` image
-  - B2_B3_confusion: `14` image
-  - B3_B4_confusion: `11` image
   - B4_missed: `6` image
 - `one_stage` / `yolo11m` / `last` / `val`
   - false_positive: `20` image
-  - B3_B4_confusion: `14` image
-  - B4_missed: `9` image
-  - B2_B3_confusion: `8` image
-- `one_stage` / `yolov8s` / `best` / `test`
-  - false_positive: `20` image
+  - B2_B3_confusion: `12` image
   - B3_B4_confusion: `12` image
-  - B2_B3_confusion: `11` image
-  - B4_missed: `11` image
-- `one_stage` / `yolov8s` / `best` / `val`
-  - false_positive: `20` image
-  - B3_B4_confusion: `12` image
-  - B2_B3_confusion: `11` image
-  - B4_missed: `11` image
+  - B4_missed: `6` image
 - `one_stage` / `yolov8s` / `last` / `test`
   - false_positive: `20` image
+  - B2_B3_confusion: `16` image
   - B3_B4_confusion: `15` image
-  - B4_missed: `13` image
-  - B2_B3_confusion: `12` image
+  - B4_missed: `7` image
 - `one_stage` / `yolov8s` / `last` / `val`
   - false_positive: `20` image
-  - B4_missed: `14` image
-  - B3_B4_confusion: `12` image
   - B2_B3_confusion: `11` image
-- `two_stage_end_to_end` / `detector+classifier` / `best` / `test`
-  - false_positive: `20` image
-  - B2_B3_confusion: `17` image
-  - B3_B4_confusion: `16` image
-  - B4_missed: `10` image
-- `two_stage_end_to_end` / `detector+classifier` / `best` / `val`
-  - false_positive: `20` image
-  - B2_B3_confusion: `16` image
-  - B4_missed: `12` image
-  - B3_B4_confusion: `11` image
-- `two_stage_end_to_end` / `detector+classifier` / `last` / `test`
-  - false_positive: `19` image
-  - B3_B4_confusion: `16` image
-  - B2_B3_confusion: `13` image
-  - B4_missed: `11` image
-- `two_stage_end_to_end` / `detector+classifier` / `last` / `val`
-  - false_positive: `20` image
-  - B2_B3_confusion: `17` image
-  - B4_missed: `13` image
-  - B3_B4_confusion: `12` image
+  - B4_missed: `7` image
+  - B3_B4_confusion: `7` image

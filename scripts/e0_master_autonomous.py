@@ -244,7 +244,12 @@ def checkpoint(message: str) -> bool:
     diff = subprocess.run(['git', 'diff', '--cached', '--quiet'], cwd=ROOT)
     if diff.returncode != 0:
         sh(['git', 'commit', '-m', f'log sync: {message}'])
-    token = os.getenv('GITHUB_TOKEN', '')
+    token = os.getenv('GITHUB_TOKEN', '').strip()
+    if not token:
+        with SYNC_LOG.open('a', encoding='utf-8') as f:
+            f.write(f'- {utc_now()} | PENDING SYNC | {message} | missing GITHUB_TOKEN\n')
+        log(f'push skipped, GITHUB_TOKEN missing: {message}')
+        return False
     auth = base64.b64encode(f'x-access-token:{token}'.encode()).decode()
     for attempt in range(1, 4):
         r = subprocess.run(
